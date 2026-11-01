@@ -37,7 +37,7 @@ export default defineConfig(({mode}) => {
                     runtimeCaching: [],
                     navigateFallback: null,
                     cleanupOutdatedCaches: true,
-                    importScripts: ['push-sw.js'],
+                    importScripts: ['push-sw.js?v=3'],
                 }
             }),
             AutoImport({
