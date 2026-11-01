@@ -479,8 +479,9 @@ onMounted(async () => {
     if (!props.embedded) router.replace('/inbox')
     return
   }
-  // T-02: 刷新后从 persist 恢复的 contentData.email 可能 content 缺失/过期 → 用 detail 兜底重取
-  if (email && email.emailId && !email.content) {
+  // The list projection truncates content for D1 cost; always load the full
+  // detail before rendering so long <head>/CSS blocks cannot hide the body.
+  if (email && email.emailId) {
     try {
       const detail = await emailDetail(email.emailId)
       // 就地合并，保持模板 `email` 引用与响应式

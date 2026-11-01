@@ -125,6 +125,10 @@ function openAiForEmail(event) {
 onMounted(() => {
   document.documentElement.lang = locale.value
   window.addEventListener('otsmail:ai', openAiForEmail)
+  // Repair a lost/expired push subscription after a browser restart or SW update.
+  if (notifyOn.value && 'Notification' in window && Notification.permission === 'granted') {
+    enableNotify().then(ok => { if (!ok) notifyOn.value = false })
+  }
 })
 onUnmounted(() => {
   window.removeEventListener('otsmail:ai', openAiForEmail)

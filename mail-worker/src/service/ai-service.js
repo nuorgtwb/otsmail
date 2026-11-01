@@ -192,12 +192,14 @@ const aiService = {
 			});
 		} catch (e) {
 			console.error('获取 AI 模型失败: ', e);
-			throw new BizError(t('aiModelFetchFailed'), 502);
+			const host = (() => { try { return new URL(base).host } catch { return base } })();
+			throw new BizError(`${t('aiModelFetchFailed')} (${host} unreachable)`, 502);
 		}
 
 		if (!response.ok) {
 			console.error(`获取 AI 模型失败 status: ${response.status} response: ${await response.text()}`);
-			throw new BizError(t('aiModelFetchFailed'), 502);
+			const host = (() => { try { return new URL(base).host } catch { return base } })();
+			throw new BizError(`${t('aiModelFetchFailed')} (${host} HTTP ${response.status})`, 502);
 		}
 
 		const data = await response.json();

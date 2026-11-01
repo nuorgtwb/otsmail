@@ -12,10 +12,10 @@ function urlBase64ToUint8Array(base64) {
 }
 
 async function subscribeWebPush() {
-	if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+	if (!('serviceWorker' in navigator) || !('PushManager' in window)) return true
 	try {
 		const {key} = await pushKey()
-		if (!key) return
+		if (!key) return true
 		let registration = await navigator.serviceWorker.getRegistration()
 		if (!registration) {
 			registration = await navigator.serviceWorker.register('/sw.js')
@@ -30,8 +30,10 @@ async function subscribeWebPush() {
 				applicationServerKey: urlBase64ToUint8Array(key)
 			})
 		await subscribePush(subscription.toJSON())
+		return true
 	} catch (e) {
-		console.warn('Web Push 订阅失败: ', e)
+		console.warn('Web Push subscription failed: ', e)
+		return false
 	}
 }
 
@@ -65,7 +67,10 @@ export async function enableNotify() {
 		return false
 	}
 	localStorage.setItem(ENABLE_KEY, '1')
-	await subscribeWebPush()
+	if (!await subscribeWebPush()) {
+		localStorage.setItem(ENABLE_KEY, '0')
+		return false
+	}
 	return true
 }
 
