@@ -1,0 +1,42 @@
+# Deploy-to-Cloudflare template config.
+# Production deploys still use mail-worker/wrangler.toml.
+# Bindings intentionally omit resource IDs; Cloudflare Deploy buttons provision
+# D1 / KV / R2 automatically and write the real IDs back to this file.
+name = "otsmail-template"
+main = "mail-worker/src/index.js"
+compatibility_date = "2025-06-04"
+compatibility_flags = ["nodejs_compat"]
+keep_vars = true
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "db"
+database_name = "otsmail-template"
+
+[[kv_namespaces]]
+binding = "kv"
+
+[[r2_buckets]]
+binding = "r2"
+
+[ai]
+binding = "ai"
+
+[assets]
+binding = "assets"
+directory = "./mail-worker/dist"
+not_found_handling = "single-page-application"
+run_worker_first = true
+
+[triggers]
+crons = ["*/30 * * * *"]
+
+[vars]
+pwd_iterations = 8000
+domain = ["example.com"]
+admin = "admin@example.com"
+mcp_switch = false
+github_switch = false
+google_switch = false

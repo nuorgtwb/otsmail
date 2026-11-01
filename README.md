@@ -16,6 +16,25 @@
 
 > Fork 自 [maillab/cloud-mail](https://github.com/maillab/cloud-mail)，保留 MIT 协议与 Cloudflare 原生架构，并在此基础上做了安全加固与功能扩展。
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/otscup/otsmail)
+
+## 一键部署到 Cloudflare
+
+点击上面的按钮后，Cloudflare 会克隆仓库、自动创建 D1 / KV / R2，并使用仓库根目录的 `wrangler.toml` 部署。部署页会提示填写：
+
+- `admin`：管理员登录邮箱
+- `domain`：收信域名数组，例如 `["example.com"]`
+- `jwt_secret`：随机 64 位十六进制字符串
+- `init_secret`：另一个随机 64 位十六进制字符串
+
+部署完成后：
+
+1. 打开 `https://<你的域名>/setup`，输入 `init_secret` 初始化数据库；
+2. 到 Cloudflare Dashboard → Email Routing，把邮箱域名的 catch-all 指向该 Worker；
+3. 如需附件/背景图公网访问，绑定 R2 自定义域名，并在系统设置里填写 `r2_domain`。
+
+> 根目录的 `wrangler.toml` 是给 Deploy 按钮用的模板，不绑定现有生产资源；日常手动部署仍使用 `mail-worker/wrangler.toml`。Deploy 按钮只支持公开的 GitHub/GitLab 仓库，仓库必须是 public。
+
 ## 功能
 
 | 功能 | 说明 |

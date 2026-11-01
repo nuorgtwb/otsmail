@@ -1,0 +1,28 @@
+{
+  "name": "otsmail-deploy",
+  "private": true,
+  "version": "0.1.8",
+  "scripts": {
+    "build": "corepack pnpm --dir mail-worker install --frozen-lockfile && corepack pnpm --dir mail-vue install --frozen-lockfile && corepack pnpm --dir mail-vue run build",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.90.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "admin": {
+        "description": "管理员登录邮箱，必须与你在 otsmail 注册/登录的邮箱完全一致"
+      },
+      "domain": {
+        "description": "收信域名数组，例如 [\"example.com\"]；可在部署后修改 Worker 变量"
+      },
+      "jwt_secret": {
+        "description": "JWT 签名密钥，建议用 `openssl rand -hex 32` 生成"
+      },
+      "init_secret": {
+        "description": "一次性数据库初始化密钥，部署后打开 /setup 输入它"
+      }
+    }
+  }
+}

@@ -1,0 +1,2 @@
+jwt_secret=replace-with-a-random-64-hex-secret
+init_secret=replace-with-a-second-random-64-hex-secret

@@ -137,6 +137,11 @@ const routes = [
         component: () => import('@/views/login/index.vue')
     },
     {
+        path: '/setup',
+        name: 'setup',
+        component: () => import('@/views/setup/index.vue')
+    },
+    {
         path: '/test',
         name: 'test',
         component: () => import('@/views/test/index.vue')
@@ -182,7 +187,7 @@ router.beforeEach((to, from, next) => {
 
     const token = getToken()
 
-    if (!token && to.name !== 'login') {
+    if (!token && to.name !== 'login' && to.name !== 'setup') {
         return next({name: 'login'})
     }
 

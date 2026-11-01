@@ -22,6 +22,12 @@ const webAssetService = {
 
 	// 读取前端资源，返回 Response
 	async fetch(req, env) {
+		// Fresh Deploy-button installs use Workers Assets; production keeps using R2.
+		if (env.assets) {
+			const asset = await env.assets.fetch(req);
+			if (asset.status !== 404) return asset;
+		}
+
 		const url = new URL(req.url);
 		let pathname = decodeURIComponent(url.pathname);
 
