@@ -93,7 +93,32 @@ const emailService = {
 
 		const query = orm(c)
 			.select({
-				...email,
+				emailId: email.emailId,
+				sendEmail: email.sendEmail,
+				name: email.name,
+				accountId: email.accountId,
+				userId: email.userId,
+				subject: email.subject,
+				code: email.code,
+				text: sql`substr(${email.text}, 1, 4000)`.as('text'),
+				content: sql`substr(${email.content}, 1, 2000)`.as('content'),
+				cc: email.cc,
+				bcc: email.bcc,
+				recipient: email.recipient,
+				toEmail: email.toEmail,
+				toName: email.toName,
+				inReplyTo: email.inReplyTo,
+				relation: email.relation,
+				messageId: email.messageId,
+				type: email.type,
+				status: email.status,
+				resendEmailId: email.resendEmailId,
+				message: email.message,
+				unread: email.unread,
+				createTime: email.createTime,
+				isDel: email.isDel,
+				spam: email.spam,
+				category: email.category,
 				starId: star.starId
 			})
 			.from(email)
@@ -155,7 +180,11 @@ const emailService = {
 					return row;
 				});
 
-		const latestEmailQuery = orm(c).select().from(email).where(
+		const latestEmailQuery = orm(c).select({
+			emailId: email.emailId,
+			accountId: email.accountId,
+			userId: email.userId
+		}).from(email).where(
 			and(
 				allReceive ? eq(1,1) : eq(email.accountId, accountId),
 				eq(email.userId, userId),
