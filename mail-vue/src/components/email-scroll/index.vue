@@ -599,6 +599,12 @@ onActivated(() => {
 })
 
 onUpdated(bindInertia)
+
+function onRealtimeEmail() {
+  refreshList();
+  loadCategoryCounts();
+}
+
 onMounted(() => {
   nextTick(bindInertia)
   timer = setInterval(() => {
@@ -606,10 +612,12 @@ onMounted(() => {
       email.formatCreateTime = fromNow(email.createTime);
     })
   }, 1000 * 60);
+  window.addEventListener('otsmail:email', onRealtimeEmail);
 })
 
 onUnmounted(() => {
   clearInterval(timer)
+  window.removeEventListener('otsmail:email', onRealtimeEmail);
   unbindInertia()
 })
 

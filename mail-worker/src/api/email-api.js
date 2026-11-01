@@ -1,4 +1,5 @@
 import app from '../hono/hono';
+import { streamSSE } from 'hono/streaming';
 import emailService from '../service/email-service';
 import result from '../model/result';
 import userContext from '../security/user-context';
@@ -27,6 +28,26 @@ app.use('/email/*', async (c, next) => {
 app.get('/email/list', async (c) => {
 	const data = await emailService.list(c, c.req.query(), userContext.getUserId(c));
 	return c.json(result.ok(data));
+});
+
+app.get('/email/events', async (c) => {
+	const userId = userContext.getUserId(c);
+	const lastKey = `email:last:${userId}`;
+	return streamSSE(c, async (stream) => {
+		let last = (await c.env.kv?.get(lastKey)) || '';
+		await stream.writeSSE({ event: 'ready', data: JSON.stringify({ last }) });
+		while (!stream.aborted) {
+			await stream.sleep(10000);
+			if (stream.aborted) break;
+			const latest = (await c.env.kv?.get(lastKey)) || '';
+			if (latest && latest !== last) {
+				last = latest;
+				await stream.writeSSE({ event: 'email', data: JSON.stringify({ emailId: latest }) });
+			} else {
+				await stream.writeSSE({ event: 'ping', data: '' });
+			}
+		}
+	});
 });
 
 app.get('/email/latest', async (c) => {

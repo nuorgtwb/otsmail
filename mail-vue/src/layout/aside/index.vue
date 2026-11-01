@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <el-scrollbar class="scroll">
     <div>
       <div class="title" >
@@ -122,6 +122,7 @@ import {emailCounts} from "@/request/email.js";
 import db from "@/db/db.js";
 import {logout} from "@/request/login.js";
 import {clearToken} from "@/utils/token-store.js";
+import {startEmailEvents, stopEmailEvents} from "@/utils/email-events.js";
 
 const settingStore = useSettingStore();
 const uiStore = useUiStore();
@@ -159,10 +160,15 @@ onMounted(() => {
   loadCounts();
   countTimer = setInterval(loadCounts, countRefreshMs.value);
   window.addEventListener('otsmail:counts', () => loadCounts(true));
+  startEmailEvents(() => {
+    loadCounts(true);
+    window.dispatchEvent(new CustomEvent('otsmail:email'));
+  });
 });
 
 onUnmounted(() => {
   clearInterval(countTimer);
+  stopEmailEvents();
   window.removeEventListener('otsmail:counts', loadCounts);
 });
 
