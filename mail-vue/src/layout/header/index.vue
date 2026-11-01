@@ -259,6 +259,14 @@ async function toggleNotify() {
     ElMessage({message: t('notificationsOff'), type: 'info', plain: true})
     return
   }
+  if ('Notification' in window && Notification.permission === 'denied') {
+    notifyBlocked.value = true
+    ElMessageBox.alert(t('notificationBlockedDetail'), t('notificationBlockedTitle'), {
+      confirmButtonText: t('confirm'),
+      type: 'warning'
+    }).catch(() => {})
+    return
+  }
   const ok = await enableNotify()
   notifyOn.value = ok
   notifyBlocked.value = !ok && 'Notification' in window && Notification.permission === 'denied'

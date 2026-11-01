@@ -294,6 +294,8 @@ const en = {
     notificationsOn: 'Notifications on',
     notificationsOff: 'Notifications off',
     notificationsBlocked: 'Allow notifications in the browser settings',
+    notificationBlockedTitle: 'Notifications are blocked for this site',
+    notificationBlockedDetail: 'Chrome / Edge: click the lock or settings icon left of the address bar → Site settings → Notifications → Allow. Or open chrome://settings/content/notifications and remove the block for mail.otscup.com. Then reload and click the bell again.',
     countRefreshMinutes: 'Background count refresh (minutes)',
     operationFailed: 'Operation failed',
     replyAll: 'Reply all',

@@ -296,6 +296,8 @@ const zh = {
     notificationsOn: "通知已开启",
     notificationsOff: "通知已关闭",
     notificationsBlocked: "请在浏览器设置中允许通知",
+    notificationBlockedTitle: "浏览器已阻止本站通知",
+    notificationBlockedDetail: "Chrome / Edge：点击地址栏左侧的锁或设置图标 → 网站设置 → 通知 → 允许；也可以打开 chrome://settings/content/notifications，删除 mail.otscup.com 的“阻止”。改完后刷新页面，再点铃铛。",
     forward: "转发",
     confirm: "确定",
     cancel: "取消",
