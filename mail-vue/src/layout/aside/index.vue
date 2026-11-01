@@ -148,7 +148,7 @@ async function loadCounts(force = false) {
   if (!force && Date.now() - lastCountsAt < 30000) return;
   lastCountsAt = Date.now();
   try {
-    const data = await emailCounts();
+    const data = await emailCounts(force);
     Object.assign(counts, data.menu);
   } catch {}
   try {
