@@ -134,8 +134,8 @@ export async function email(message, env, ctx) {
 		// 去重：同一 Message-Id + 同一收件地址只收一次。
 		// 上游（SMTP）重投时 Message-Id 不变，照单全收会把同一封信入库、
 		// TG、转发、webhook 各发 N 遍（2026-10-30 实测：GNAME 原信 10 秒一封重投 18 次）。
-		// 只认已完成入库的状态（RECEIVE / NOONE）：仍在 SAVING 的首份可能中途失败，
-		// 重投是它唯一的补救，不能丢。空 Message-Id 不去重（无法区分）。
+		// RECEIVE / NOONE 直接丢弃；SAVING 说明上次已插入但没走到 completeReceive，
+		// 收尾旧行而不是再插一条。空 Message-Id 不去重（无法区分）。
 		// 正常返回（不抛错、不拒收）是关键：让上游认为投递成功，停止重投。
 		if (params.messageId) {
 			const dup = await env.db.prepare(
