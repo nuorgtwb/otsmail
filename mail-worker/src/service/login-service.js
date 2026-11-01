@@ -258,12 +258,17 @@ const loginService = {
 
 		if (!noVerifyPwd) await loginGuard.clear(c, email);
 
+		// 配置的管理员落一个系统管理员角色会话，权限中间件不再按邮箱放行
+		if (userRow.email === c.env.admin) userRow.type = 0;
+
 		const uuid = uuidv4();
 		const jwt = await JwtUtils.generateToken(c,{ userId: userRow.userId, token: uuid });
 
 		let authInfo = await c.env.kv.get(KvConst.AUTH_INFO + userRow.userId, { type: 'json' });
 
 		if (authInfo && (authInfo.user.email === userRow.email)) {
+
+			if (userRow.email === c.env.admin) authInfo.user.type = 0;
 
 			if (authInfo.tokens.length > 10) {
 				authInfo.tokens.shift();
@@ -292,7 +297,9 @@ const loginService = {
 	async logout(c, userId) {
 		const token =userContext.getToken(c);
 		const authInfo = await c.env.kv.get(KvConst.AUTH_INFO + userId, { type: 'json' });
+		if (!authInfo?.tokens) return;
 		const index = authInfo.tokens.findIndex(item => item === token);
+		if (index === -1) return;
 		authInfo.tokens.splice(index, 1);
 		await c.env.kv.put(KvConst.AUTH_INFO + userId, JSON.stringify(authInfo));
 	}

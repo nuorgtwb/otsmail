@@ -1,15 +1,15 @@
 import http from '@/axios/index.js';
 
-export function oauthLinuxDoLogin(code, state) {
-    return http.post('/oauth/linuxDo/login',{code, state})
+export function oauthLinuxDoLogin(code, state, nonce) {
+    return http.post('/oauth/linuxDo/login',{code, state, nonce})
 }
 
-export function oauthGithubLogin(code, state) {
-    return http.post('/oauth/github/login',{code, state})
+export function oauthGithubLogin(code, state, nonce) {
+    return http.post('/oauth/github/login',{code, state, nonce})
 }
 
-export function oauthGoogleLogin(code, state) {
-    return http.post('/oauth/google/login',{code, state})
+export function oauthGoogleLogin(code, state, nonce) {
+    return http.post('/oauth/google/login',{code, state, nonce})
 }
 
 // 企业 SSO（OIDC）：provider 为空时后端取第一个启用的服务商
@@ -17,8 +17,8 @@ export function oidcConfig(providerId) {
     return http.get('/oauth/oidc/config', {params: providerId ? {provider: providerId} : {}})
 }
 
-export function oauthOidcLogin(code, state, provider, codeVerifier) {
-    return http.post('/oauth/oidc/login', {code, state, provider, codeVerifier})
+export function oauthOidcLogin(code, state, provider, codeVerifier, nonce) {
+    return http.post('/oauth/oidc/login', {code, state, provider, codeVerifier, nonce})
 }
 
 export function oauthBindUser(form) {

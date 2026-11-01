@@ -1095,6 +1095,7 @@
 import {computed, defineOptions, nextTick, onMounted, onUnmounted, reactive, ref, watch} from "vue";
 import {aiModels, deleteBackground, setBackground, setBlackList, settingQuery, settingSet, tgWebhook, webhookTest} from "@/request/setting.js";
 import {aiClassify} from "@/request/ai.js";
+import {telegramBindTicket} from "@/request/my.js";
 import {useSettingStore} from "@/store/setting.js";
 import {useUiStore} from "@/store/ui.js";
 import {useUserStore} from "@/store/user.js";
@@ -1742,8 +1743,9 @@ async function bindTelegram() {
   tgBindLoading.value = true
   const bindWindow = window.open('', '_blank')
   try {
+    const {ticket} = await telegramBindTicket()
     await tgBotSave()
-    if (bindWindow) bindWindow.location.href = '/telegram/bind'
+    if (bindWindow) bindWindow.location.href = `/telegram/bind?ticket=${encodeURIComponent(ticket)}`
   } catch (e) {
     bindWindow?.close()
     ElMessage({message: e?.response?.data?.msg || e.message || 'Telegram 绑定失败', type: 'error', plain: true})
@@ -2080,25 +2082,32 @@ async function fetchAiModels() {
 
 // v1.3 登录态绑定（大网站模式）：设置页把当前 GitHub/Google/LinuxDo 授权绑到当前账号
 // 走 state=bind → 回调后 oauthGetUser 分支调 PUT /oauth/bind（login/index.vue 已实现）
+function oauthNonce() {
+  const nonce = crypto.randomUUID().replaceAll('-', '')
+  const secure = window.location.protocol === 'https:' ? '; Secure' : ''
+  document.cookie = `oauth_nonce=${nonce}; Path=/; SameSite=Lax${secure}`
+  return nonce
+}
+
 function bindGithub() {
   const clientId = setting.value.githubClientId
   const redirectUri = encodeURIComponent(setting.value.githubCallbackUrl)
   window.location.href =
-      `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=read:user&state=bind`
+      `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=read:user&state=bind-github:${oauthNonce()}`
 }
 
 function bindGoogle() {
   const clientId = setting.value.googleClientId
   const redirectUri = encodeURIComponent(setting.value.googleCallbackUrl)
   window.location.href =
-      `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile&state=bind`
+      `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile&state=bind-google:${oauthNonce()}`
 }
 
 function bindLinuxDo() {
   const clientId = setting.value.linuxdoClientId
   const redirectUri = encodeURIComponent(setting.value.linuxdoCallbackUrl)
   window.location.href =
-      `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=bind`
+      `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=bind-linuxdo:${oauthNonce()}`
 }
 
 function saveTitle() {

@@ -13,6 +13,37 @@ import { t } from "../i18n/i18n";
 
 const oauthService = {
 
+	verifyNonce(c, nonce) {
+		const cookie = c.req.header('Cookie') || '';
+		const match = cookie.match(/(?:^|;\s*)oauth_nonce=([^;]+)/);
+		if (!nonce || !match || match[1] !== String(nonce)) {
+			throw new BizError('OAuth state 校验失败，请重新发起授权', 400);
+		}
+	},
+
+	async issueBindToken(c, oauthRow, userId = 0) {
+		const token = crypto.randomUUID().replaceAll('-', '');
+		await c.env.kv.put(`oauth_bind_${token}`, JSON.stringify({
+			oauthUserId: String(oauthRow.oauthUserId),
+			provider: oauthRow.provider,
+			userId: Number(userId) || 0
+		}), { expirationTtl: 600 });
+		return token;
+	},
+
+	async consumeBindToken(c, token, oauthUserId, provider, userId) {
+		if (!token) throw new BizError('OAuth 绑定已失效，请重新授权', 401);
+		const key = `oauth_bind_${token}`;
+		const record = await c.env.kv.get(key, { type: 'json' });
+		if (!record
+			|| String(record.oauthUserId) !== String(oauthUserId)
+			|| record.provider !== provider
+			|| Number(record.userId) !== Number(userId)) {
+			throw new BizError('OAuth 绑定已失效，请重新授权', 401);
+		}
+		await c.env.kv.delete(key);
+	},
+
 	/**
 	 * 未登录·注册绑定（v1.3 语义修正）
 	 * 为未绑定的 oauth 行注册一个全新站内邮箱并绑定。
@@ -21,13 +52,16 @@ const oauthService = {
 	 */
 	async bindUser(c, params) {
 
-		const { email, oauthUserId, provider, code } = params;
+		const { email, oauthUserId, provider, code, bindToken, nonce } = params;
+		this.verifyNonce(c, nonce);
 
 		const oauthRow = await this.getById(c, oauthUserId, provider);
 
 		if (!oauthRow) {
 			throw new BizError(t('oauthBindRowNotFound') || 'OAuth record not found')
 		}
+
+		await this.consumeBindToken(c, bindToken, oauthUserId, provider, 0);
 
 		let userRow = await userService.selectByIdIncludeDel(c, oauthRow.userId);
 
@@ -53,7 +87,8 @@ const oauthService = {
 	 */
 	async bind(c, params) {
 
-		const { oauthUserId, provider } = params;
+		const { oauthUserId, provider, bindToken, nonce } = params;
+		this.verifyNonce(c, nonce);
 
 		// 手动鉴权（/oauth 在 exclude 中，中间件不校验）
 		const jwt = c.req.header(constant.TOKEN_HEADER);
@@ -80,6 +115,8 @@ const oauthService = {
 			throw new BizError(t('oauthBindRowNotFound') || 'OAuth record not found')
 		}
 
+		await this.consumeBindToken(c, bindToken, oauthUserId, provider, userId);
+
 		// 未绑定 → 绑到当前 userId；已绑当前 userId → 幂等成功；已绑其它 userId → 拒绝
 		if (oauthRow.userId === 0 || oauthRow.userId === userId) {
 			await orm(c).update(oauth).set({ userId }).where(and(eq(oauth.oauthUserId, oauthUserId), eq(oauth.provider, provider))).run();
@@ -91,7 +128,8 @@ const oauthService = {
 
 	async linuxDoLogin(c, params) {
 
-		const { code } = params;
+		const { code, nonce } = params;
+		this.verifyNonce(c, nonce);
 
 		let token = '';
 		let userInfo = {}
@@ -142,12 +180,12 @@ const oauthService = {
 				const sessionUserId = isBind ? await this.getLoggedInUserId(c) : null;
 
 				if (sessionUserId) {
-					return { userInfo: oauthRow, token: null }
+					return { userInfo: oauthRow, token: null, bindToken: await this.issueBindToken(c, oauthRow, sessionUserId || 0) }
 				}
 
 
 				if (!userRow) {
-					return { userInfo: oauthRow, token: null }
+					return { userInfo: oauthRow, token: null, bindToken: await this.issueBindToken(c, oauthRow, sessionUserId || 0) }
 				}
 
 				const JwtToken = await loginService.login(c, { email: userRow.email, password: null }, true);
@@ -156,7 +194,8 @@ const oauthService = {
 
 			async githubLogin(c, params) {
 
-		const { code } = params;
+		const { code, nonce } = params;
+		this.verifyNonce(c, nonce);
 
 		const reqParams = new URLSearchParams()
 		reqParams.append('client_id', c.env.github_client_id)
@@ -206,12 +245,12 @@ const oauthService = {
 				const sessionUserId = isBind ? await this.getLoggedInUserId(c) : null;
 
 				if (sessionUserId) {
-					return { userInfo: oauthRow, token: null }
+					return { userInfo: oauthRow, token: null, bindToken: await this.issueBindToken(c, oauthRow, sessionUserId || 0) }
 				}
 
 
 				if (!userRow) {
-					return { userInfo: oauthRow, token: null }
+					return { userInfo: oauthRow, token: null, bindToken: await this.issueBindToken(c, oauthRow, sessionUserId || 0) }
 				}
 
 				const JwtToken = await loginService.login(c, { email: userRow.email, password: null }, true);
@@ -227,7 +266,8 @@ const oauthService = {
 	 */
 	async googleLogin(c, params) {
 
-		const { code } = params;
+		const { code, nonce } = params;
+		this.verifyNonce(c, nonce);
 
 		const reqParams = new URLSearchParams()
 		reqParams.append('client_id', c.env.google_client_id)
@@ -277,7 +317,7 @@ const oauthService = {
 				const sessionUserId = isBind ? await this.getLoggedInUserId(c) : null;
 
 		if (sessionUserId) {
-			return { userInfo: oauthRow, token: null }
+			return { userInfo: oauthRow, token: null, bindToken: await this.issueBindToken(c, oauthRow, sessionUserId || 0) }
 		}
 
 		// 纯登录（无会话）：email_verified=true 且 email 已是站内用户 → 直接绑定登录（标准 OIDC 免注册）
@@ -293,7 +333,7 @@ const oauthService = {
 		const userRow = await userService.selectByIdIncludeDel(c, oauthRow.userId);
 
 		if (!userRow) {
-			return { userInfo: oauthRow, token: null }
+			return { userInfo: oauthRow, token: null, bindToken: await this.issueBindToken(c, oauthRow, sessionUserId || 0) }
 		}
 
 		const JwtToken = await loginService.login(c, { email: userRow.email, password: null }, true);
@@ -375,11 +415,13 @@ const oauthService = {
 	 */
 	async oidcLogin(c, params) {
 
-		const { code, codeVerifier } = params;
+		const { code, codeVerifier, nonce } = params;
+		this.verifyNonce(c, nonce);
 		const state = String(params.state || '');
 		const setting = await settingService.query(c);
 		// 多服务商：state 形如 oidc:<id> / bind-oidc:<id>，显式 provider 参数优先
-		const stateProviderId = state.includes(':') ? state.split(':').slice(1).join(':') : '';
+		// state 末尾一段是 CSRF nonce，不参与 provider 解析
+		const stateProviderId = state.includes(':') ? state.split(':').slice(1, -1).join(':') : '';
 		const provider = await settingService.resolveOidcProvider(c, params.provider || stateProviderId);
 		const providerKey = provider.id === 'legacy' ? 'oidc' : 'oidc:' + provider.id;
 		const doc = await this.oidcDiscovery(c, provider);
@@ -435,7 +477,7 @@ const oauthService = {
 		}
 
 		if (sessionUserId) {
-			return { userInfo: oauthRow, token: null }
+			return { userInfo: oauthRow, token: null, bindToken: await this.issueBindToken(c, oauthRow, sessionUserId || 0) }
 		}
 
 		// 用户在个人设置里关闭了这种 OIDC 登录方式：仍允许手动重新绑定，但不允许直接登录
@@ -456,7 +498,7 @@ const oauthService = {
 		const userRow = await userService.selectByIdIncludeDel(c, oauthRow.userId);
 
 		if (!userRow) {
-			return { userInfo: oauthRow, token: null }
+			return { userInfo: oauthRow, token: null, bindToken: await this.issueBindToken(c, oauthRow, sessionUserId || 0) }
 		}
 
 		const JwtToken = await loginService.login(c, { email: userRow.email, password: null }, true);

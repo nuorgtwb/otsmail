@@ -69,6 +69,17 @@ const telegramService = {
 		}
 	},
 
+	async webhookSecret(c) {
+		if (c.env.telegram_webhook_secret) return c.env.telegram_webhook_secret;
+		if (!c.env.kv) return c.env.jwt_secret;
+		let secret = await c.env.kv.get('tg_webhook_secret');
+		if (!secret) {
+			secret = crypto.randomUUID().replaceAll('-', '');
+			await c.env.kv.put('tg_webhook_secret', secret);
+		}
+		return secret;
+	},
+
 	// 通知和 AI 指令共用同一个 Bot：这里只把 webhook 指到本 Worker
 	async setWebhook(c, url) {
 		const { tgBotToken } = await settingService.query(c);
@@ -78,6 +89,7 @@ const telegramService = {
 		}
 
 		const target = String(url || '').trim() || `${new URL(c.req.url).origin}/api/telegram/webhook`;
+		const secret = await this.webhookSecret(c);
 
 		if (!/^https:\/\//i.test(target)) {
 			throw new BizError('Webhook 必须是 https 地址', 400);
@@ -88,7 +100,7 @@ const telegramService = {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
 				url: target,
-				secret_token: c.env.jwt_secret,
+				secret_token: secret,
 				allowed_updates: ['message']
 			})
 		});
@@ -247,11 +259,16 @@ const telegramService = {
 			return;
 		}
 
-		// /bind <code>：网页授权页生成一次性 code，这里把当前 chat 写回设置
+		const admin = await orm(c).select({ userId: user.userId }).from(user)
+			.where(and(eq(user.email, c.env.admin), eq(user.isDel, isDel.NORMAL)))
+			.get();
+
+		// /bind <code>：只允许管理员授权页签发的绑定码
 		const bind = text.match(/^\/bind\s+([a-f0-9]{16,})$/i);
 		if (bind) {
 			const key = 'tg_bind_' + bind[1];
-			if (await c.env.kv.get(key)) {
+			const bindUserId = await c.env.kv.get(key);
+			if (admin && bindUserId && String(bindUserId) === String(admin.userId)) {
 				await settingService.set(c, { tgChatId: chatId });
 				await c.env.kv.delete(key);
 				await this.sendBotText(tgBotToken, chatId, '绑定成功');
@@ -267,10 +284,6 @@ const telegramService = {
 			await this.sendBotText(tgBotToken, chatId, 'Access denied');
 			return;
 		}
-
-		const admin = await orm(c).select({ userId: user.userId }).from(user)
-			.where(and(eq(user.email, c.env.admin), eq(user.isDel, isDel.NORMAL)))
-			.get();
 
 		if (!admin) {
 			await this.sendBotText(tgBotToken, chatId, 'Admin user not found');

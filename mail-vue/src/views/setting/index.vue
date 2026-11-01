@@ -329,6 +329,13 @@ function showSetName() {
 
 // v1.3 登录态绑定（大网站模式）：个人设置页把当前 GitHub/Google/LinuxDo 授权绑到当前账号
 // 走 state=bind → 回调后 login 的 oauthGetUser 分支调 PUT /oauth/bind
+function oauthNonce() {
+  const nonce = crypto.randomUUID().replaceAll('-', '')
+  const secure = window.location.protocol === 'https:' ? '; Secure' : ''
+  document.cookie = `oauth_nonce=${nonce}; Path=/; SameSite=Lax${secure}`
+  return nonce
+}
+
 function bindGithub() {
   const clientId = settingStore.settings.githubClientId
   const redirectUri = encodeURIComponent(settingStore.settings.githubCallbackUrl)
@@ -337,7 +344,7 @@ function bindGithub() {
     return
   }
   window.location.href =
-      `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=read:user&state=bind-github`
+      `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=read:user&state=bind-github:${oauthNonce()}`
 }
 
 function bindGoogle() {
@@ -348,7 +355,7 @@ function bindGoogle() {
     return
   }
   window.location.href =
-      `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile&state=bind-google`
+      `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile&state=bind-google:${oauthNonce()}`
 }
 
 function bindLinuxDo() {
@@ -359,14 +366,15 @@ function bindLinuxDo() {
     return
   }
   window.location.href =
-      `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=bind-linuxdo`
+      `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=bind-linuxdo:${oauthNonce()}`
 }
 
 // 企业 SSO 绑定：授权端点与 client_id 由后端 discovery 提供，后台改配置不用动前端
 async function bindOidc(providerId) {
   try {
     const config = await oidcConfig(providerId)
-    const state = providerId ? 'bind-oidc:' + providerId : 'bind-oidc'
+    const nonce = oauthNonce()
+    const state = (providerId ? 'bind-oidc:' + providerId : 'bind-oidc') + ':' + nonce
     const {challenge} = await createPkce(state)
     const params = new URLSearchParams({
       client_id: config.clientId,

@@ -4,14 +4,18 @@ import result from '../model/result';
 
 app.get('/telegram/getEmail/:token', async (c) => {
 	const content = await telegramService.getEmailContent(c, c.req.param());
-	c.header('Cache-Control', 'public, max-age=604800, immutable');
+	c.header('Cache-Control', 'private, no-store');
 	return c.html(content)
 });
 
-// Telegram Bot 授权页：网页点“绑定”后打开，用户复制命令发给 bot
+// Telegram Bot 授权页：必须携带登录用户签发的短期 ticket，防止陌生人抢占全局绑定
 app.get('/telegram/bind', async (c) => {
+	const ticket = c.req.query('ticket') || '';
+	const userId = ticket ? await c.env.kv.get(`tg_bind_ticket_${ticket}`) : null;
+	if (!userId) return c.html('<!doctype html><meta charset="utf-8"><title>绑定 Telegram</title><p style="font-family:system-ui;max-width:560px;margin:60px auto">绑定链接已失效，请回到系统设置重新发起。</p>', 401);
+	await c.env.kv.delete(`tg_bind_ticket_${ticket}`);
 	const code = crypto.randomUUID().replace(/-/g, '').slice(0, 24);
-	await c.env.kv.put('tg_bind_' + code, '1', {expirationTtl: 600});
+	await c.env.kv.put('tg_bind_' + code, userId, {expirationTtl: 600});
 	return c.html(`<!doctype html><meta charset="utf-8"><title>绑定 Telegram</title>
 <div style="font-family:system-ui;max-width:560px;margin:60px auto;padding:24px;line-height:1.7">
 <h2>绑定 Telegram</h2>
@@ -21,11 +25,14 @@ app.get('/telegram/bind', async (c) => {
 </div>`);
 });
 
-// Telegram Bot webhook（/telegram 免登录，靠 secret_token 校验）：setWebhook 时把 secret_token 设成 Worker 的 jwt_secret
+// Telegram Bot webhook（免登录，靠独立 secret_token 校验）
 app.post('/telegram/webhook', async (c) => {
 	const secret = c.req.header('X-Telegram-Bot-Api-Secret-Token') || '';
+	const expected = await telegramService.webhookSecret(c);
+	// 兼容旧 webhook，管理员在设置里重新保存后即改为独立密钥
+	const legacy = c.env.jwt_secret || '';
 
-	if (!c.env.jwt_secret || secret !== c.env.jwt_secret) {
+	if (secret !== expected && secret !== legacy) {
 		return c.json(result.fail('forbidden', 403));
 	}
 

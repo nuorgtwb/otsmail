@@ -217,7 +217,9 @@ const bindForm = reactive({
   email: '',
   oauthUserId: '',
   provider: '',
-  code: ''
+  code: '',
+  bindToken: '',
+  nonce: ''
 })
 
 const form = reactive({
@@ -312,32 +314,40 @@ const getEmailName = (email) => {
   return email.split('@')[0]
 }
 
+function oauthNonce() {
+  const nonce = crypto.randomUUID().replaceAll('-', '')
+  const secure = window.location.protocol === 'https:' ? '; Secure' : ''
+  document.cookie = `oauth_nonce=${nonce}; Path=/; SameSite=Lax${secure}`
+  return nonce
+}
+
 function linuxDoLogin() {
   const clientId = settingStore.settings.linuxdoClientId
   const redirectUri = encodeURIComponent(settingStore.settings.linuxdoCallbackUrl)
   window.location.href =
-      `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email`
+      `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=linuxdo:${oauthNonce()}`
 }
 
 function githubLogin() {
   const clientId = settingStore.settings.githubClientId
   const redirectUri = encodeURIComponent(settingStore.settings.githubCallbackUrl)
   window.location.href =
-      `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=read:user&state=github`
+      `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=read:user&state=github:${oauthNonce()}`
 }
 
 function googleLogin() {
   const clientId = settingStore.settings.googleClientId
   const redirectUri = encodeURIComponent(settingStore.settings.googleCallbackUrl)
   window.location.href =
-      `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile&state=google`
+      `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile&state=google:${oauthNonce()}`
 }
 
 async function oidcLogin(providerId) {
   // 授权端点由后端 discovery 取，后台改配置不用动前端
   try {
     const config = await oidcConfig(providerId)
-    const state = providerId ? 'oidc:' + providerId : 'oidc'
+    const nonce = oauthNonce()
+    const state = (providerId ? 'oidc:' + providerId : 'oidc') + ':' + nonce
     const {challenge} = await createPkce(state)
     const params = new URLSearchParams({
       client_id: config.clientId,
@@ -375,16 +385,21 @@ async function oauthGetUser() {
     const isBindState = (state || '').startsWith('bind')
     const rawProvider = isBindState ? state.replace(/^bind-/, '') : (state || '')
     const [provider, ...providerIdParts] = rawProvider.split(':')
+    const nonce = providerIdParts.pop() || ''
     const providerId = providerIdParts.join(':')
     const loginFn = providerMap[provider] || oauthLinuxDoLogin
+    // OIDC 需要 provider/codeVerifier；GitHub/Google/LinuxDo 只取 code/state/nonce。
+    const runLogin = () => provider === 'oidc'
+      ? loginFn(code, state, providerId, codeVerifier, nonce)
+      : loginFn(code, state, nonce)
 
     oauthLoading.value = true
 
     // v1.3 登录态绑定（大网站模式）：state=bind 时已登录用户把 OAuth 授权绑到当前账号
     if (isBindState) {
-      loginFn(code, state, providerId, codeVerifier).then(data => {
+      runLogin().then(data => {
         // 授权落库但未绑定 → 绑到当前登录账号；这里绝不能用返回的 token 换会话（那是别人的账号）
-        oauthBind({ oauthUserId: data.userInfo.oauthUserId, provider: data.userInfo.provider }).then(() => {
+        oauthBind({ oauthUserId: data.userInfo.oauthUserId, provider: data.userInfo.provider, bindToken: data.bindToken, nonce }).then(() => {
           ElMessage({ message: '绑定成功', type: 'success', plain: true })
           router.replace('/settings')
         }).catch(() => {
@@ -399,10 +414,12 @@ async function oauthGetUser() {
       return
     }
 
-    loginFn(code, state, providerId, codeVerifier).then(data => {
+    runLogin().then(data => {
 
       bindForm.oauthUserId = data.userInfo.oauthUserId;
       bindForm.provider = data.userInfo.provider;
+      bindForm.bindToken = data.bindToken || '';
+      bindForm.nonce = nonce;
 
       if (!data.token) {
         showBindForm.value = true
@@ -475,7 +492,7 @@ function bind() {
 
   }
 
-  const form = {email, oauthUserId: bindForm.oauthUserId, provider: bindForm.provider, code: bindForm.code}
+  const form = {email, oauthUserId: bindForm.oauthUserId, provider: bindForm.provider, code: bindForm.code, bindToken: bindForm.bindToken, nonce: bindForm.nonce}
 
   bindLoading.value = true
   oauthBindUser(form).then(data => {

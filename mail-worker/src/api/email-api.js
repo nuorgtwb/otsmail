@@ -7,10 +7,10 @@ import attService from '../service/att-service';
 const countKey = userId => `email:counts:${userId}`;
 
 async function getCounts(c, userId) {
-	const cached = await c.env.KV?.get(countKey(userId), 'json');
+	const cached = await c.env.kv?.get(countKey(userId), 'json');
 	if (cached) return cached;
 	const data = await emailService.counts(c, userId);
-	await c.env.KV?.put(countKey(userId), JSON.stringify(data), { expirationTtl: 60 });
+	await c.env.kv?.put(countKey(userId), JSON.stringify(data), { expirationTtl: 60 });
 	return data;
 }
 
@@ -20,7 +20,7 @@ app.use('/email/*', async (c, next) => {
 	if (c.req.method !== 'GET') {
 		try {
 			const userId = userContext.getUserId(c);
-			if (userId) await c.env.KV?.delete(countKey(userId));
+			if (userId) await c.env.kv?.delete(countKey(userId));
 		} catch (e) { /* auth failure already handled by the route */ }
 	}
 });

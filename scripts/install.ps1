@@ -1,4 +1,4 @@
-﻿param(
+param(
   [string]$WorkerName = 'otsmail',
   [string]$Domains = '',
   [string]$AdminEmail = '',
@@ -41,6 +41,10 @@ if (-not $JwtSecret) {
   [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
   $JwtSecret = ([BitConverter]::ToString($bytes) -replace '-', '').ToLower()
 }
+
+$initBytes = New-Object byte[] 32
+[Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($initBytes)
+$InitSecret = ([BitConverter]::ToString($initBytes) -replace '-', '').ToLower()
 
 $d1Name = $WorkerName
 $kvName = "$WorkerName-kv"
@@ -125,16 +129,20 @@ Step '写入 jwt_secret'
 $JwtSecret | & node $wrangler secret put jwt_secret --config $configPath
 if ($LASTEXITCODE -ne 0) { throw 'jwt_secret 写入失败' }
 
+Step '写入 init_secret'
+$InitSecret | & node $wrangler secret put init_secret --config $configPath
+if ($LASTEXITCODE -ne 0) { throw 'init_secret 写入失败' }
+
 Step '上传前端到 R2'
 & (Join-Path $PSScriptRoot 'upload-web.ps1') -Dist $dist -Bucket $bucket -Prefix web -Config $configPath
 
 if ($workerUrl) {
   Step '初始化数据库'
   try {
-    $init = Invoke-WebRequest -UseBasicParsing "$workerUrl/api/init/$JwtSecret" -TimeoutSec 120
+    $init = Invoke-WebRequest -UseBasicParsing "$workerUrl/api/init/$InitSecret" -TimeoutSec 120
     Write-Host "init: $($init.StatusCode) $($init.Content)"
   } catch {
-    Write-Warning "自动初始化失败，请手动访问 $workerUrl/api/init/<jwt_secret>：$_"
+    Write-Warning "自动初始化失败，请手动访问 $workerUrl/api/init/<init_secret>（已写入 Worker secret）：$_"
   }
 }
 

@@ -48,6 +48,8 @@ const requirePerms = [
 	'/setting/query',
 	'/setting/setBlacklist',
 	'/setting/webhookTest',
+	'/setting/tgWebhook',
+	'/setting/aiModels',
 	'/user/delete',
 	'/user/setPwd',
 	'/user/setStatus',
@@ -89,7 +91,7 @@ const premKey = {
 	'all-email:query': ['/allEmail/list','/allEmail/latest'],
 	'all-email:delete': ['/allEmail/delete','/allEmail/batchDelete'],
 	'setting:query': ['/setting/query'],
-	'setting:set': ['/setting/set', '/setting/setBackground','/setting/deleteBackground','/setting/setBlacklist','/setting/webhookTest'],
+	'setting:set': ['/setting/set', '/setting/setBackground','/setting/deleteBackground','/setting/setBlacklist','/setting/webhookTest','/setting/tgWebhook','/setting/aiModels'],
 	'analysis:query': ['/analysis/echarts'],
 	'reg-key:add': ['/regKey/add'],
 	'reg-key:query': ['/regKey/list','/regKey/history'],
@@ -113,21 +115,24 @@ app.use('*', async (c, next) => {
 
 		const userPublicToken = await c.env.kv.get(KvConst.PUBLIC_KEY);
 		const publicToken = c.req.header(constant.TOKEN_HEADER);
-		if (publicToken !== userPublicToken) {
+		if (!constantTimeEqual(publicToken || '', userPublicToken || '')) {
 			throw new BizError(t('publicTokenFail'), 401);
 		}
 		return await next();
 	}
 
 
-	// MCP 客户端常只给 URL，允许 ?token= 和 x-api-key，普通 API 仍只认请求头
-	let jwt = c.req.header(constant.TOKEN_HEADER);
-	if (!jwt && c.req.path.startsWith('/mcp')) {
-		jwt = c.req.query('token') || c.req.header('x-api-key');
-	}
+	// Token 只从 Authorization 头读取，避免出现在 URL、代理和访问日志中
+	const jwt = c.req.header(constant.TOKEN_HEADER);
 
 	// MCP 访问令牌（mcp_ 前缀）：与 JWT 共用同一套用户上下文与权限校验，只是不查 KV 会话表
 	const mcpAuth = await mcpService.verifyBearer(c, jwt);
+
+	if (mcpAuth) {
+		const mcpOn = c.env.mcp_switch === true || String(c.env.mcp_switch).toLowerCase() === 'true';
+		if (!mcpOn) throw new BizError('MCP is disabled', 401);
+		if (!path.startsWith('/mcp')) throw new BizError('MCP token only valid for /mcp', 403);
+	}
 
 	const result = mcpAuth ? { userId: mcpAuth.userId, token: null, viaMcp: true } : await jwtUtils.verifyToken(c, jwt);
 
@@ -160,7 +165,8 @@ app.use('*', async (c, next) => {
 			return path.startsWith(item);
 		});
 
-		if (userPermIndex === -1 && authInfo.user.email !== c.env.admin) {
+		// 0 是系统管理员角色；不再按邮箱字符串放行
+		if (userPermIndex === -1 && Number(authInfo.user.type) !== 0) {
 			throw new BizError(t('unauthorized'), 403);
 		}
 
@@ -179,6 +185,15 @@ app.use('*', async (c, next) => {
 
 	return await next();
 });
+
+function constantTimeEqual(a, b) {
+	const left = new TextEncoder().encode(String(a));
+	const right = new TextEncoder().encode(String(b));
+	if (left.length !== right.length) return false;
+	let diff = 0;
+	for (let i = 0; i < left.length; i++) diff |= left[i] ^ right[i];
+	return diff === 0;
+}
 
 function permKeyToPaths(permKeys) {
 

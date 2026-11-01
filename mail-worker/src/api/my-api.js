@@ -2,6 +2,7 @@ import app from '../hono/hono';
 import userService from '../service/user-service';
 import result from '../model/result';
 import userContext from '../security/user-context';
+import BizError from '../error/biz-error';
 
 app.get('/my/loginUserInfo', async (c) => {
 	const user = await userService.loginUserInfo(c, userContext.getUserId(c));
@@ -36,6 +37,15 @@ app.post('/my/uploadImage', async (c) => {
 app.put('/my/setting', async (c) => {
 	const data = await userService.updateMySetting(c, await c.req.json(), userContext.getUserId(c));
 	return c.json(result.ok(data));
+});
+
+app.post('/my/telegram/ticket', async (c) => {
+	const userId = userContext.getUserId(c);
+	const user = await userService.loginUserInfo(c, userId);
+	if (user.email !== c.env.admin) throw new BizError('仅管理员可绑定 Telegram', 403);
+	const ticket = crypto.randomUUID().replaceAll('-', '');
+	await c.env.kv.put(`tg_bind_ticket_${ticket}`, String(userId), { expirationTtl: 300 });
+	return c.json(result.ok({ ticket }));
 });
 
 app.get('/my/2fa/status', async (c) => {

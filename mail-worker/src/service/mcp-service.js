@@ -13,6 +13,7 @@ import cryptoUtils from '../utils/crypto-utils';
  * - /mcp 请求由 security.js 调 verifyBearer 换出 userId，与 JWT 走同一套用户上下文
  */
 const TOKEN_PREFIX = 'mcp_';
+const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const OAUTH_EXPIRES_IN = 3600;
 
 function randomHex(bytes) {
@@ -82,6 +83,8 @@ const mcpService = {
 		const tokenHash = await sha256Hex(token);
 		const row = await orm(c).select().from(mcpToken).where(eq(mcpToken.tokenHash, tokenHash)).get();
 		if (!row || row.revoked === 1) return null;
+		const createdAt = Date.parse(row.createdAt);
+		if (!Number.isFinite(createdAt) || Date.now() - createdAt > TOKEN_TTL_MS) return null;
 		await orm(c).update(mcpToken)
 			.set({ lastUsedAt: new Date().toISOString() })
 			.where(eq(mcpToken.tokenId, row.tokenId))

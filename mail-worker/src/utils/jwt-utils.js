@@ -53,6 +53,9 @@ const jwtUtils = {
 
 			if (!headerB64 || !payloadB64 || !signatureB64) return null;
 
+			const header = JSON.parse(decoder.decode(base64urlDecode(headerB64)));
+			if (header.alg !== 'HS256') return null;
+
 			const data = `${headerB64}.${payloadB64}`;
 			const key = await crypto.subtle.importKey(
 				'raw',
@@ -76,11 +79,11 @@ const jwtUtils = {
 
 			const now = Math.floor(Date.now() / 1000);
 			if (payload.exp && payload.exp < now) return null;
+			if (payload.nbf && payload.nbf > now + 30) return null;
 
 			return payload;
 
-		} catch (err) {
-			console.log(err)
+		} catch {
 			return null;
 		}
 	}

@@ -7,8 +7,13 @@ const dbInit = {
 
 		const secret = c.req.param('secret');
 
-		if (secret !== c.env.jwt_secret) {
-			return c.text('❌ JWT secret mismatch');
+		// 初始化接口只允许用独立 init_secret 触发一次，绝不能复用 JWT 密钥
+		if (!c.env.init_secret || secret !== c.env.init_secret) {
+			return new Response('Not Found', { status: 404 });
+		}
+
+		if (await c.env.kv.get('init_done') === '1') {
+			return new Response('Not Found', { status: 404 });
 		}
 
 		await this.intDB(c);
@@ -53,6 +58,7 @@ const dbInit = {
 		await this.otsmail_22DB(c);
 		await this.otsmail_9DB(c);
 		await settingService.refresh(c);
+		await c.env.kv.put('init_done', '1');
 		return c.text('success');
 	},
 
@@ -112,16 +118,17 @@ const dbInit = {
 		}
 
 		// 给升级前已有的邮件补一版粗分类，之后新邮件由 AI + 规则分类
+		// SQL 是固定常量，分类值走 bind；不要再把变量拼进 SQL
 		const rules = [
-			['spam', `spam = 1`],
-			['social', `(send_email LIKE '%facebook.%' OR send_email LIKE '%twitter.%' OR send_email LIKE '%linkedin.%' OR send_email LIKE '%instagram.%' OR send_email LIKE '%pinterest.%' OR send_email LIKE '%reddit.%' OR send_email LIKE '%slack.%')`],
-			['promotion', `(subject LIKE '%sale%' OR subject LIKE '%discount%' OR subject LIKE '%优惠%' OR subject LIKE '%促销%' OR subject LIKE '%折扣%' OR subject LIKE '%限时%')`],
-			['updates', `(subject LIKE '%verify%' OR subject LIKE '%security%' OR subject LIKE '%receipt%' OR subject LIKE '%invoice%' OR subject LIKE '%order%' OR subject LIKE '%验证码%' OR subject LIKE '%账单%' OR subject LIKE '%订单%')`],
-			['ads', `(subject LIKE '%广告%' OR subject LIKE '%推广%' OR subject LIKE '%sponsor%')`]
+			['spam', `UPDATE email SET category = ? WHERE category = 'primary' AND spam = 1`],
+			['social', `UPDATE email SET category = ? WHERE category = 'primary' AND (send_email LIKE '%facebook.%' OR send_email LIKE '%twitter.%' OR send_email LIKE '%linkedin.%' OR send_email LIKE '%instagram.%' OR send_email LIKE '%pinterest.%' OR send_email LIKE '%reddit.%' OR send_email LIKE '%slack.%')`],
+			['promotion', `UPDATE email SET category = ? WHERE category = 'primary' AND (subject LIKE '%sale%' OR subject LIKE '%discount%' OR subject LIKE '%优惠%' OR subject LIKE '%促销%' OR subject LIKE '%折扣%' OR subject LIKE '%限时%')`],
+			['updates', `UPDATE email SET category = ? WHERE category = 'primary' AND (subject LIKE '%verify%' OR subject LIKE '%security%' OR subject LIKE '%receipt%' OR subject LIKE '%invoice%' OR subject LIKE '%order%' OR subject LIKE '%验证码%' OR subject LIKE '%账单%' OR subject LIKE '%订单%')`],
+			['ads', `UPDATE email SET category = ? WHERE category = 'primary' AND (subject LIKE '%广告%' OR subject LIKE '%推广%' OR subject LIKE '%sponsor%')`]
 		];
-		for (const [category, condition] of rules) {
+		for (const [category, sql] of rules) {
 			try {
-				await c.env.db.prepare(`UPDATE email SET category = '${category}' WHERE category = 'primary' AND ${condition};`).run();
+				await c.env.db.prepare(sql).bind(category).run();
 			} catch (e) {
 				console.warn(`跳过分类回填：${e.message}`);
 			}

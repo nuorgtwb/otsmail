@@ -159,7 +159,7 @@ export async function email(message, env, ctx) {
 		}
 
 		let emailRow = await emailService.receive({ env }, params, cidAttachments, r2Domain);
-		await env.KV?.delete(`email:counts:${emailRow.userId}`);
+		await env.kv?.delete(`email:counts:${emailRow.userId}`);
 
 		attachments.forEach(attachment => {
 			attachment.emailId = emailRow.emailId;

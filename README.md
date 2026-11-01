@@ -1,4 +1,4 @@
-﻿# otsmail
+# otsmail
 
 <p align="center">
   <img src="doc/demo/logo.png" width="72" alt="otsmail" />
@@ -103,9 +103,9 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1
 2. 生成 `mail-worker/wrangler.oneclick.toml`（不会改现有 `wrangler.toml`）；
 3. 安装并构建前端；
 4. 部署 Worker；
-5. 写入 `jwt_secret`；
+5. 写入 `jwt_secret` 和独立的 `init_secret`；
 6. 上传 `mail-worker/dist` 到 R2；
-7. 调用 `/api/init/<jwt_secret>` 初始化数据库。
+7. 调用 `/api/init/<init_secret>` 初始化数据库（只允许一次）。
 
 也可以非交互传参：
 
@@ -142,6 +142,7 @@ npx wrangler r2 bucket create otsmail-r2
 
 ```bash
 npx wrangler secret put jwt_secret
+npx wrangler secret put init_secret
 npx wrangler deploy
 cd ../mail-vue
 pnpm install
@@ -153,7 +154,7 @@ pnpm build
 首次部署后访问：
 
 ```text
-https://<你的域名>/api/init/<jwt_secret>
+https://<你的域名>/api/init/<init_secret>
 ```
 
 然后在 Cloudflare Dashboard → Email Routing 里把邮箱域名的 catch-all 指向 `otsmail` Worker。

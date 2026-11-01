@@ -14,6 +14,8 @@ import { isDel, roleConst } from '../const/entity-const';
 import email from '../entity/email';
 import userService from './user-service';
 import KvConst from '../const/kv-const';
+import totpUtils from '../utils/totp-utils';
+import loginGuard from './login-guard';
 
 const publicService = {
 
@@ -181,7 +183,11 @@ const publicService = {
 
 	async verifyUser(c, params) {
 
-		const { email, password } = params
+		const { email, password, twoFactorCode } = params
+
+		if (await loginGuard.lockRemaining(c, email) > 0) {
+			throw new BizError(t('loginLocked'), 429);
+		}
 
 		const userRow = await userService.selectByEmailIncludeDel(c, email);
 
@@ -194,8 +200,20 @@ const publicService = {
 		}
 
 		if (!await cryptoUtils.verifyPassword(password, userRow.salt, userRow.password)) {
+			if (await loginGuard.recordFailure(c, email)) {
+				throw new BizError(t('loginLocked'), 429);
+			}
 			throw new BizError(t('IncorrectPwd'));
 		}
+
+		if (userRow.twoFactorSwitch === 1 || userRow.twoFactorRequired === 1) {
+			if (!twoFactorCode) throw new BizError(t('needTwoFactorCode'), 428);
+			if (!await totpUtils.verify(userRow.twoFactorSecret, twoFactorCode)) {
+				throw new BizError(t('twoFactorCodeInvalid'), 428);
+			}
+		}
+
+		await loginGuard.clear(c, email);
 	}
 
 }

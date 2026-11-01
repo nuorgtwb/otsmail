@@ -128,22 +128,33 @@ const emailService = {
 
 		const listQuery = page > 0 ? query.limit(size).offset((page - 1) * size).all() : query.limit(size).all();
 
-		const totalQuery = orm(c).select({ total: count() }).from(email)
-			.leftJoin(
-				account,
-				eq(account.accountId, email.accountId)
-			)
-			.where(
-				and(
-					allReceive ? eq(1,1) : eq(email.accountId, accountId),
-					eq(email.userId, userId),
-					typeCondition,
-					...mailboxCondition,
-					...categoryCondition,
-					eq(account.isDel, isDel.NORMAL),
-					...searchConditions
+		// 列表每次刷新都会 COUNT 整个邮箱；同一筛选 60 秒内复用结果。
+		const totalCacheKey = searchConditions.length === 0
+			? `email:total:${userId}:${allReceive ? 1 : 0}:${accountId || 0}:${type ?? ''}:${mailbox || 'inbox'}:${category || 'all'}:${status || 0}`
+			: null;
+		const cachedTotal = totalCacheKey ? await c.env.kv?.get(totalCacheKey) : null;
+		const totalQuery = cachedTotal !== null && cachedTotal !== undefined
+			? Promise.resolve({ total: Number(cachedTotal) })
+			: orm(c).select({ total: count() }).from(email)
+				.leftJoin(
+					account,
+					eq(account.accountId, email.accountId)
 				)
-		).get();
+				.where(
+					and(
+						allReceive ? eq(1,1) : eq(email.accountId, accountId),
+						eq(email.userId, userId),
+						typeCondition,
+						...mailboxCondition,
+						...categoryCondition,
+						...statusCondition,
+						eq(account.isDel, isDel.NORMAL),
+						...searchConditions
+					)
+				).get().then(async row => {
+					if (totalCacheKey) await c.env.kv?.put(totalCacheKey, String(row.total), { expirationTtl: 60 });
+					return row;
+				});
 
 		const latestEmailQuery = orm(c).select().from(email).where(
 			and(

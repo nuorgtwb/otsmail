@@ -44,3 +44,7 @@ export function setTwoFactorRequired(required) {
 export function updateMySetting(data) {
     return http.put('/my/setting', data)
 }
+
+export function telegramBindTicket() {
+    return http.post('/my/telegram/ticket')
+}

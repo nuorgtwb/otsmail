@@ -1,4 +1,11 @@
+function escapeHtml(value) {
+	return String(value ?? '').replace(/[&<>"']/g, ch => ({
+		'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+	})[ch]);
+}
+
 export default function emailTextTemplate(text) {
+	const safeText = escapeHtml(text);
 	return `<!DOCTYPE html>
 <html lang='en' >
 <head>
@@ -29,7 +36,7 @@ export default function emailTextTemplate(text) {
     </style>
 </head>
 <body>
-<span>${text}</span>
+<span>${safeText}</span>
 </body>
 </html>`
 }
