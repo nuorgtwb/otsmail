@@ -24,6 +24,7 @@ export function startEmailEvents(onEmail) {
         signal
       });
       if (!response.ok || !response.body) throw new Error(`SSE ${response.status}`);
+      if (!response.headers.get('content-type')?.includes('text/event-stream')) return;
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();

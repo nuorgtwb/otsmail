@@ -183,8 +183,6 @@ export async function email(message, env, ctx) {
 
 		let emailRow = await emailService.receive({ env }, params, cidAttachments, r2Domain);
 		await env.kv?.delete(`email:counts:${emailRow.userId}`);
-		// Real-time SSE only needs the latest id; the client refreshes counts/list.
-		await env.kv?.put(`email:last:${emailRow.userId}`, String(emailRow.emailId), { expirationTtl: 86400 });
 
 		attachments.forEach(attachment => {
 			attachment.emailId = emailRow.emailId;
@@ -207,6 +205,8 @@ export async function email(message, env, ctx) {
 		}
 
 		emailRow = await emailService.completeReceive({ env }, account ? emailConst.status.RECEIVE : emailConst.status.NOONE, emailRow.emailId);
+		// Real-time SSE only needs the latest id; the client refreshes counts/list.
+		await env.kv?.put(`email:last:${emailRow.userId}`, String(emailRow.emailId), { expirationTtl: 86400 });
 
 		ctx.waitUntil(pushService.send({ env }, emailRow.userId, {
 			title: params.subject || '新邮件',
