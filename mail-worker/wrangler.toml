@@ -101,3 +101,11 @@ mcp_switch = true
 # Web Push（VAPID）公钥可公开；私钥用 wrangler secret put VAPID_PRIVATE_KEY 配置
 VAPID_SUBJECT = "mailto:admin@otscup.com"
 VAPID_PUBLIC_KEY = "BA_zaTbd_KgUzukJLyVZ5QLRx4eNtxzXL0q9ZGAj51XS4m-uuIwInmxSXejnBnFHxvhkY4j8A-Fo46xuoLUqvfM"
+
+[[durable_objects.bindings]]
+name = "EMAIL_HUB"
+class_name = "EmailHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["EmailHub"]

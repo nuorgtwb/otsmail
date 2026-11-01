@@ -24,6 +24,14 @@ binding = "r2"
 [ai]
 binding = "ai"
 
+[[durable_objects.bindings]]
+name = "EMAIL_HUB"
+class_name = "EmailHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["EmailHub"]
+
 [assets]
 binding = "assets"
 directory = "./mail-worker/dist"

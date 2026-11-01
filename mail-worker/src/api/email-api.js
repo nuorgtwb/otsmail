@@ -50,6 +50,24 @@ app.get('/email/events', async (c) => {
 	});
 });
 
+app.post('/email/ws-ticket', async (c) => {
+	if (!c.env.EMAIL_HUB) return c.text('websocket not configured', 503);
+	const userId = userContext.getUserId(c);
+	const ticket = crypto.randomUUID().replace(/-/g, '');
+	await c.env.kv.put(`ws_ticket:${ticket}`, String(userId), { expirationTtl: 60 });
+	return c.json(result.ok({ ticket }));
+});
+
+app.get('/email/wsock', async (c) => {
+	const ticket = c.req.query('ticket') || '';
+	const userId = ticket ? await c.env.kv.get(`ws_ticket:${ticket}`) : null;
+	if (!userId) return c.text('unauthorized', 401);
+	await c.env.kv.delete(`ws_ticket:${ticket}`);
+	if (!c.env.EMAIL_HUB) return c.text('websocket not configured', 503);
+	const hub = c.env.EMAIL_HUB.get(c.env.EMAIL_HUB.idFromName(String(userId)));
+	return hub.fetch(c.req.raw);
+});
+
 app.get('/email/latest', async (c) => {
 	const list = await emailService.latest(c, c.req.query(), userContext.getUserId(c));
 	return c.json(result.ok(list));

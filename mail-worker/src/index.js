@@ -7,6 +7,7 @@ import r2Service from './service/r2-service';
 import webAssetService from './service/web-asset-service';
 import oauthService from "./service/oauth-service";
 import analysisService from './service/analysis-service';
+export { EmailHub } from './durable/email-hub';
 export default {
 	 async fetch(req, env, ctx) {
 

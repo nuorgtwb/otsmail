@@ -207,6 +207,14 @@ export async function email(message, env, ctx) {
 		emailRow = await emailService.completeReceive({ env }, account ? emailConst.status.RECEIVE : emailConst.status.NOONE, emailRow.emailId);
 		// Real-time SSE only needs the latest id; the client refreshes counts/list.
 		await env.kv?.put(`email:last:${emailRow.userId}`, String(emailRow.emailId), { expirationTtl: 86400 });
+		if (env.EMAIL_HUB) {
+			ctx.waitUntil(env.EMAIL_HUB.get(env.EMAIL_HUB.idFromName(String(emailRow.userId)))
+				.fetch('https://email-hub/notify', {
+					method: 'POST',
+					body: JSON.stringify({ type: 'email', emailId: emailRow.emailId })
+				})
+				.catch(e => console.error('WebSocket notify failed: ', e)));
+		}
 
 		ctx.waitUntil(pushService.send({ env }, emailRow.userId, {
 			title: params.subject || '新邮件',

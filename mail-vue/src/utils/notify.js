@@ -11,6 +11,12 @@ function urlBase64ToUint8Array(base64) {
 	return Uint8Array.from(raw, char => char.charCodeAt(0))
 }
 
+function errorText(e) {
+	return e?.message || e?.name || (() => {
+		try { return JSON.stringify(e) } catch { return String(e) }
+	})() || 'unknown'
+}
+
 async function subscribeWebPush() {
 	if (!('serviceWorker' in navigator) || !('PushManager' in window)) return { ok: true }
 	try {
@@ -33,7 +39,7 @@ async function subscribeWebPush() {
 		return { ok: true }
 	} catch (e) {
 		console.warn('Web Push subscription failed: ', e)
-		return { ok: false, error: e?.message || String(e) }
+		return { ok: false, error: errorText(e) }
 	}
 }
 
