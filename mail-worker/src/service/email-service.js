@@ -27,7 +27,7 @@ const emailService = {
 
 	async list(c, params, userId) {
 
-		let { emailId, type, accountId, size, timeSort, allReceive, text, searchType, startDate, endDate, mailbox, category, page } = params;
+		let { emailId, type, accountId, size, timeSort, allReceive, text, searchType, startDate, endDate, mailbox, category, page, status } = params;
 
 		size = Number(size);
 		emailId = Number(emailId);
@@ -62,6 +62,7 @@ const emailService = {
 			spam: [eq(email.isDel, isDel.NORMAL), eq(email.spam, 1)]
 		}[mailbox] || [eq(email.isDel, isDel.NORMAL), eq(email.spam, 0)]);
 		const categoryCondition = category && category !== 'spam' && category !== 'all' ? [eq(email.category, category)] : [];
+		const statusCondition = status != null && status !== '' ? [eq(email.status, Number(status))] : [];
 
 		// 回收站同时展示收到的和发出的邮件；其它分类沿用页面传入的 type
 		const typeCondition = (mailbox === 'deleted' || mailbox === 'all') ? sql`1 = 1` : eq(email.type, type);
@@ -143,6 +144,7 @@ const emailService = {
 					typeCondition,
 					...mailboxCondition,
 					...categoryCondition,
+					...statusCondition,
 					eq(account.isDel, isDel.NORMAL),
 					...searchConditions
 				)
@@ -175,6 +177,7 @@ const emailService = {
 						typeCondition,
 						...mailboxCondition,
 						...categoryCondition,
+						...statusCondition,
 						eq(account.isDel, isDel.NORMAL),
 						...searchConditions
 					)
