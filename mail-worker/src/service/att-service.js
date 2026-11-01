@@ -10,20 +10,30 @@ import { v4 as uuidv4 } from 'uuid';
 import domainUtils from '../utils/domain-uitls';
 import settingService from "./setting-service";
 
+function unsafeInline(filename, mime) {
+	const ext = String(filename || '').split('.').pop().toLowerCase();
+	return ['html', 'htm', 'xhtml', 'svg', 'svgz', 'xml'].includes(ext)
+		|| /^(text\/html|application\/xhtml\+xml|image\/svg\+xml)/i.test(mime || '');
+}
+
+function disposition(filename, inline) {
+	const name = String(filename || 'attachment').replace(/["\\\r\n]/g, '_');
+	return `${inline ? 'inline' : 'attachment'}; filename="${name}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+}
+
 const attService = {
 
 	async addAtt(c, attachments) {
 
 		for (let attachment of attachments) {
 
+			const inline = Boolean(attachment.contentId) && !unsafeInline(attachment.filename, attachment.mimeType);
 			let metadate = {
-				contentType: attachment.mimeType,
+				contentType: unsafeInline(attachment.filename, attachment.mimeType) ? 'application/octet-stream' : attachment.mimeType,
+				contentDisposition: disposition(attachment.filename, inline)
 			}
 
-			if (!attachment.contentId) {
-				metadate.contentDisposition = `attachment;filename=${attachment.filename}`
-			} else {
-				metadate.contentDisposition = `inline;filename=${attachment.filename}`
+			if (inline) {
 				metadate.cacheControl = `max-age=259200`
 			}
 
@@ -183,8 +193,8 @@ const attService = {
 
 		for (let att of attList) {
 			await r2Service.putObj(c, att.key, att.buff, {
-				contentType: att.mime,
-				contentDisposition: `attachment;filename=${att.filename}`
+				contentType: unsafeInline(att.filename, att.mime) ? 'application/octet-stream' : att.mime,
+				contentDisposition: disposition(att.filename, false)
 			});
 		}
 
@@ -202,10 +212,11 @@ const attService = {
 				continue;
 			}
 			if (attData.buff) {
+				const unsafe = unsafeInline(attData.filename, attData.mimeType);
 				await r2Service.putObj(c, attData.key, attData.buff, {
-					contentType: attData.mimeType,
+					contentType: unsafe ? 'application/octet-stream' : attData.mimeType,
 					cacheControl: `max-age=259200`,
-					contentDisposition: `inline;filename=${attData.filename}`
+					contentDisposition: disposition(attData.filename, !unsafe)
 				});
 				delete attData.buff;
 			}

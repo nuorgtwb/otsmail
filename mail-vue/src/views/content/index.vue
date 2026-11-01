@@ -158,7 +158,7 @@
                 <div class="opt-icon att-icon">
                   <Icon v-if="isOnlyOffice(att.filename)" icon="mdi:file-edit-outline" width="22" height="22" title="编辑（ONLYOFFICE）" @click="openOnlyOffice(att)"/>
                   <Icon v-if="isImage(att.filename) || isPreviewable(att.filename) || isOnlyOffice(att.filename) || isCsv(att.filename) || isMarkdown(att.filename)" icon="hugeicons:view" width="22" height="22" title="预览" @click="openAttachment(att)"/>
-                  <a :href="cvtR2Url(att.key)" download>
+                  <a :href="cvtR2Url(att.key)" download @click.prevent="downloadAttachment(att)">
                     <Icon icon="system-uicons:push-down" width="22" height="22"/>
                   </a>
                 </div>
@@ -208,6 +208,7 @@
         <div v-else ref="officeWrapRef" class="att-frame-wrap">
           <div v-if="attachmentKind === 'office' && officeLoading" class="att-preview-note">正在加载 ONLYOFFICE 编辑器…</div>
           <iframe v-if="attachmentUrl" :src="attachmentUrl" class="att-preview-frame"
+                  :sandbox="attachmentKind === 'iframe' ? 'allow-same-origin allow-scripts allow-forms allow-popups' : undefined"
                   :style="attachmentKind === 'office' ? officeFrameStyle : undefined"
                   :title="attachmentName" @load="officeLoading = false"/>
         </div>
@@ -645,12 +646,30 @@ function openAttachment(att) {
     return openMicrosoftOffice(att)
   }
   if (!isPreviewable(att.filename)) {
-    window.open(cvtR2Url(att.key), '_blank', 'noopener,noreferrer')
+    downloadAttachment(att)
     return
   }
   attachmentKind.value = 'iframe'
   attachmentUrl.value = cvtR2Url(att.key)
   showAttachmentPreview.value = true
+}
+
+async function downloadAttachment(att) {
+  try {
+    const res = await fetch(cvtR2Url(att.key))
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const url = URL.createObjectURL(await res.blob())
+    const a = document.createElement('a')
+    a.href = url
+    a.download = att.filename || 'attachment'
+    a.style.display = 'none'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  } catch (e) {
+    ElMessage({ message: `下载失败：${e.message}`, type: 'error', plain: true })
+  }
 }
 
 function showImage(key) {

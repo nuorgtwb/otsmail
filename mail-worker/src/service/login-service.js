@@ -301,7 +301,7 @@ const loginService = {
 		const index = authInfo.tokens.findIndex(item => item === token);
 		if (index === -1) return;
 		authInfo.tokens.splice(index, 1);
-		await c.env.kv.put(KvConst.AUTH_INFO + userId, JSON.stringify(authInfo));
+		await c.env.kv.put(KvConst.AUTH_INFO + userId, JSON.stringify(authInfo), { expirationTtl: constant.TOKEN_EXPIRE });
 	}
 
 };

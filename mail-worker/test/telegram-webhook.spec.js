@@ -25,7 +25,7 @@ describe('Telegram webhook binding', () => {
 		global.fetch.mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
 
 		const data = await telegramService.setWebhook({
-			env: { jwt_secret: 'secret-1' },
+			env: { telegram_webhook_secret: 'secret-1' },
 			req: { url: 'https://mail.test/api/setting/tgWebhook' }
 		});
 
