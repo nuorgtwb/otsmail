@@ -18,4 +18,26 @@ await init()
 app.use(router).use(i18n).directive('perm',perm)
 app.config.devtools = true;
 
+// Activate a newly installed service worker immediately; an old worker
+// without the push handler can otherwise keep receiving pushes silently.
+if ('serviceWorker' in navigator) {
+  let reloading = false
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloading) return
+    reloading = true
+    location.reload()
+  })
+  navigator.serviceWorker.ready.then(registration => {
+    registration.update().catch(() => {})
+    const activate = worker => { if (worker) worker.postMessage({ type: 'SKIP_WAITING' }) }
+    if (registration.waiting) activate(registration.waiting)
+    registration.addEventListener('updatefound', () => {
+      const worker = registration.installing
+      worker?.addEventListener('statechange', () => {
+        if (worker.state === 'installed') activate(worker)
+      })
+    })
+  })
+}
+
 app.mount('#app');
