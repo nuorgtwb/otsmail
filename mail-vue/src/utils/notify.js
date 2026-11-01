@@ -12,10 +12,10 @@ function urlBase64ToUint8Array(base64) {
 }
 
 async function subscribeWebPush() {
-	if (!('serviceWorker' in navigator) || !('PushManager' in window)) return true
+	if (!('serviceWorker' in navigator) || !('PushManager' in window)) return { ok: true }
 	try {
 		const {key} = await pushKey()
-		if (!key) return true
+		if (!key) return { ok: true }
 		let registration = await navigator.serviceWorker.getRegistration()
 		if (!registration) {
 			registration = await navigator.serviceWorker.register('/sw.js')
@@ -30,10 +30,10 @@ async function subscribeWebPush() {
 				applicationServerKey: urlBase64ToUint8Array(key)
 			})
 		await subscribePush(subscription.toJSON())
-		return true
+		return { ok: true }
 	} catch (e) {
 		console.warn('Web Push subscription failed: ', e)
-		return false
+		return { ok: false, error: e?.message || String(e) }
 	}
 }
 
@@ -57,21 +57,21 @@ export function notifyEnabled() {
 
 export async function enableNotify() {
 	if (!('Notification' in window)) {
-		return false
+		return { ok: false, reason: 'unsupported' }
 	}
 	let permission = Notification.permission
 	if (permission === 'default') {
 		permission = await Notification.requestPermission()
 	}
 	if (permission !== 'granted') {
-		return false
+		return { ok: false, reason: 'permission', permission }
+	}
+	const push = await subscribeWebPush()
+	if (!push.ok) {
+		return { ok: false, reason: 'push', error: push.error }
 	}
 	localStorage.setItem(ENABLE_KEY, '1')
-	if (!await subscribeWebPush()) {
-		localStorage.setItem(ENABLE_KEY, '0')
-		return false
-	}
-	return true
+	return { ok: true }
 }
 
 export function disableNotify() {

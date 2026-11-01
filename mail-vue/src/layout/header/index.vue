@@ -127,7 +127,7 @@ onMounted(() => {
   window.addEventListener('otsmail:ai', openAiForEmail)
   // Repair a lost/expired push subscription after a browser restart or SW update.
   if (notifyOn.value && 'Notification' in window && Notification.permission === 'granted') {
-    enableNotify().then(ok => { if (!ok) notifyOn.value = false })
+    enableNotify().then(result => { if (!result.ok) notifyOn.value = false })
   }
 })
 onUnmounted(() => {
@@ -267,10 +267,26 @@ async function toggleNotify() {
     }).catch(() => {})
     return
   }
-  const ok = await enableNotify()
-  notifyOn.value = ok
-  notifyBlocked.value = !ok && 'Notification' in window && Notification.permission === 'denied'
-  ElMessage({message: ok ? t('notificationsOn') : t('notificationsBlocked'), type: ok ? 'success' : 'warning', plain: true})
+  const result = await enableNotify()
+  notifyOn.value = result.ok
+  if (result.ok) {
+    ElMessage({message: t('notificationsOn'), type: 'success', plain: true})
+    return
+  }
+  if (result.reason === 'push') {
+    ElMessageBox.alert(
+      `${t('notificationPushFailedDetail')}${result.error || 'unknown'}\n\n${t('notificationPushFailedHint')}`,
+      t('notificationPushFailedTitle'),
+      {confirmButtonText: t('confirm'), type: 'warning'}
+    ).catch(() => {})
+    return
+  }
+  notifyBlocked.value = result.permission === 'denied'
+  ElMessage({
+    message: result.reason === 'permission' ? t('notificationPermissionNeeded') : t('notificationsBlocked'),
+    type: 'warning',
+    plain: true
+  })
 }
 
 function openDark(e) {

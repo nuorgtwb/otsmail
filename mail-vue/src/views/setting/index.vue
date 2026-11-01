@@ -644,10 +644,16 @@ async function toggleNotify(value) {
     notifyOn.value = false
     return
   }
-  const ok = await enableNotify()
-  notifyOn.value = ok
-  if (!ok) {
-    ElMessage({message: t('notifyDenied'), type: 'warning', plain: true})
+  const result = await enableNotify()
+  notifyOn.value = result.ok
+  if (!result.ok) {
+    ElMessage({
+      message: result.reason === 'push'
+        ? `${t('notificationPushFailedTitle')}: ${result.error || 'unknown'}`
+        : t('notifyDenied'),
+      type: 'warning',
+      plain: true
+    })
   }
 }
 
