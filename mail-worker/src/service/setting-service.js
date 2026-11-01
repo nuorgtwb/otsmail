@@ -345,11 +345,12 @@ const settingService = {
 			const arrayBuffer = await file.arrayBuffer();
 			background = constant.BACKGROUND_PREFIX + await fileUtils.getBuffHash(arrayBuffer) + fileUtils.getExtFileName(file.name);
 
-
+			const unsafe = /\.(html?|xhtml|svg|svgz|xml)$/i.test(file.name || '') || /^(text\/html|application\/xhtml\+xml|image\/svg\+xml)/i.test(file.type || '');
+			const name = String(file.name || 'background').replace(/["\\\r\n]/g, '_');
 			await r2Service.putObj(c, background, arrayBuffer, {
-				contentType: file.type,
+				contentType: unsafe ? 'application/octet-stream' : file.type,
 				cacheControl: `public, max-age=31536000, immutable`,
-				contentDisposition: `inline; filename="${file.name}"`
+				contentDisposition: `${unsafe ? 'attachment' : 'inline'}; filename="${name}"; filename*=UTF-8''${encodeURIComponent(name)}`
 			});
 
 		}

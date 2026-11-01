@@ -2,6 +2,12 @@ import s3Service from './s3-service';
 import settingService from './setting-service';
 import kvObjService from './kv-obj-service';
 
+function unsafeInline(key, mime) {
+	const ext = String(key || '').split('.').pop().toLowerCase();
+	return ['html', 'htm', 'xhtml', 'svg', 'svgz', 'xml'].includes(ext)
+		|| /^(text\/html|application\/xhtml\+xml|image\/svg\+xml)/i.test(mime || '');
+}
+
 const r2Service = {
 
 	async storageType(c) {
@@ -56,12 +62,24 @@ const r2Service = {
 		}
 	},
 
-	// /attachments/** 的公开读取：之前只查 KV，R2 / S3 存储下（含 r2Domain 留空、用本站域名）一律 500
+	// /attachments/** 的公开读取：旧对象可能仍是 text/html + inline，按扩展名强制下载
+	safeResponse(obj, key) {
+		const headers = new Headers(obj.headers);
+		const unsafe = unsafeInline(key, headers.get('Content-Type'));
+		if (unsafe) {
+			headers.set('Content-Type', 'application/octet-stream');
+			headers.set('Content-Disposition', 'attachment');
+		}
+		if (!headers.has('Cache-Control')) headers.set('Cache-Control', 'public, max-age=2592000');
+		return new Response(obj.body, { status: obj.status, headers });
+	},
+
 	async publicObjResp(c, key) {
 		const storageType = await this.storageType(c);
 
 		if (storageType === 'KV') {
-			return (await kvObjService.getObj(c, key)) || new Response('Not Found', { status: 404 });
+			const obj = await kvObjService.getObj(c, key);
+			return obj ? this.safeResponse(obj, key) : new Response('Not Found', { status: 404 });
 		}
 
 		const obj = storageType === 'S3' ? await s3Service.getObj(c, key) : await c.env.r2.get(key);
@@ -69,19 +87,17 @@ const r2Service = {
 			return new Response('Not Found', { status: 404 });
 		}
 
-		// KV/S3 的 getObj 已经返回 Response；直接透传，避免 S3 图片丢掉 Content-Type
 		if (obj instanceof Response) {
-			const headers = new Headers(obj.headers);
-			if (!headers.has('Cache-Control')) headers.set('Cache-Control', 'public, max-age=2592000');
-			return new Response(obj.body, { status: obj.status, headers });
+			return this.safeResponse(obj, key);
 		}
 
-		return new Response(obj.body || obj, {
-			headers: {
-				'Content-Type': obj.httpMetadata?.contentType || 'application/octet-stream',
-				'Cache-Control': 'public, max-age=2592000'
-			}
+		const contentType = obj.httpMetadata?.contentType || 'application/octet-stream';
+		const headers = new Headers({
+			'Content-Type': unsafeInline(key, contentType) ? 'application/octet-stream' : contentType,
+			'Content-Disposition': obj.httpMetadata?.contentDisposition || (unsafeInline(key, contentType) ? 'attachment' : 'inline'),
+			'Cache-Control': 'public, max-age=2592000'
 		});
+		return new Response(obj.body || obj, { headers });
 	},
 
 	async delete(c, key) {

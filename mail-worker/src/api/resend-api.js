@@ -8,7 +8,7 @@ function base64Bytes(value) {
 
 async function verifySvix(c, raw, headers) {
 	const secret = c.env.resend_webhook_secret;
-	if (!secret) return true;
+	if (!secret) return false;
 	const id = headers.get('svix-id');
 	const timestamp = headers.get('svix-timestamp');
 	const signatures = headers.get('svix-signature');
@@ -21,12 +21,16 @@ async function verifySvix(c, raw, headers) {
 }
 
 app.post('/webhooks',async (c) => {
+	if (!c.env.resend_webhook_secret) {
+		console.error('[resend] webhook secret not configured');
+		return c.text('webhook secret not configured', 503);
+	}
+	const raw = await c.req.text();
+	if (!await verifySvix(c, raw, c.req.raw.headers)) return c.text('invalid signature', 401);
 	try {
-		const raw = await c.req.text();
-		if (!await verifySvix(c, raw, c.req.raw.headers)) return c.text('invalid signature', 401);
 		await resendService.webhooks(c, JSON.parse(raw));
 		return c.text('success', 200)
 	} catch (e) {
-		return  c.text(e.message, 500)
+		return  c.text(e.message, 400)
 	}
 })

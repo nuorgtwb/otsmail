@@ -130,7 +130,7 @@ const emailService = {
 
 		// 列表每次刷新都会 COUNT 整个邮箱；同一筛选 60 秒内复用结果。
 		const totalCacheKey = searchConditions.length === 0
-			? `email:total:${userId}:${allReceive ? 1 : 0}:${accountId || 0}:${type ?? ''}:${mailbox || 'inbox'}:${category || 'all'}:${status || 0}`
+			? `email:total:${userId}:${allReceive ? 1 : 0}:${accountId || 0}:${type ?? ''}:${mailbox || 'inbox'}:${category || 'all'}`
 			: null;
 		const cachedTotal = totalCacheKey ? await c.env.kv?.get(totalCacheKey) : null;
 		const totalQuery = cachedTotal !== null && cachedTotal !== undefined
@@ -147,7 +147,6 @@ const emailService = {
 						typeCondition,
 						...mailboxCondition,
 						...categoryCondition,
-						...statusCondition,
 						eq(account.isDel, isDel.NORMAL),
 						...searchConditions
 					)

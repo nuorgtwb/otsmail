@@ -71,7 +71,7 @@ const telegramService = {
 
 	async webhookSecret(c) {
 		if (c.env.telegram_webhook_secret) return c.env.telegram_webhook_secret;
-		if (!c.env.kv) return c.env.jwt_secret;
+		if (!c.env.kv) return '';
 		let secret = await c.env.kv.get('tg_webhook_secret');
 		if (!secret) {
 			secret = crypto.randomUUID().replaceAll('-', '');
@@ -90,6 +90,7 @@ const telegramService = {
 
 		const target = String(url || '').trim() || `${new URL(c.req.url).origin}/api/telegram/webhook`;
 		const secret = await this.webhookSecret(c);
+		if (!secret) throw new BizError('Webhook 密钥不可用', 500);
 
 		if (!/^https:\/\//i.test(target)) {
 			throw new BizError('Webhook 必须是 https 地址', 400);

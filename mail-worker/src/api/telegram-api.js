@@ -1,6 +1,5 @@
 import app from '../hono/hono';
 import telegramService from '../service/telegram-service';
-import result from '../model/result';
 
 app.get('/telegram/getEmail/:token', async (c) => {
 	const content = await telegramService.getEmailContent(c, c.req.param());
@@ -29,11 +28,9 @@ app.get('/telegram/bind', async (c) => {
 app.post('/telegram/webhook', async (c) => {
 	const secret = c.req.header('X-Telegram-Bot-Api-Secret-Token') || '';
 	const expected = await telegramService.webhookSecret(c);
-	// 兼容旧 webhook，管理员在设置里重新保存后即改为独立密钥
-	const legacy = c.env.jwt_secret || '';
 
-	if (secret !== expected && secret !== legacy) {
-		return c.json(result.fail('forbidden', 403));
+	if (!expected || secret !== expected) {
+		return c.text('forbidden', 403);
 	}
 
 	await telegramService.webhook(c, await c.req.json());

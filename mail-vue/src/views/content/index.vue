@@ -208,7 +208,7 @@
         <div v-else ref="officeWrapRef" class="att-frame-wrap">
           <div v-if="attachmentKind === 'office' && officeLoading" class="att-preview-note">正在加载 ONLYOFFICE 编辑器…</div>
           <iframe v-if="attachmentUrl" :src="attachmentUrl" class="att-preview-frame"
-                  :sandbox="attachmentKind === 'iframe' ? 'allow-same-origin allow-scripts allow-forms allow-popups' : undefined"
+                  :sandbox="attachmentKind === 'iframe' && !attachmentUrl.startsWith('https://view.officeapps.live.com') ? 'allow-scripts allow-forms allow-popups' : undefined"
                   :style="attachmentKind === 'office' ? officeFrameStyle : undefined"
                   :title="attachmentName" @load="officeLoading = false"/>
         </div>

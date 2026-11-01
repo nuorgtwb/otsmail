@@ -240,6 +240,22 @@ DeepL / AI / OAuth 等供应商密钥
 
 换机或灾备时，`jwt_secret` 保持一致可以保留现有登录态；换掉则所有会话失效，需要重新登录。
 
+### Resend 回调签名
+
+`resend_webhook_secret` 的值来自 Resend 控制台的 Webhook Signing Secret，不是 Resend API Key：
+
+1. Resend Dashboard → Webhooks → 对应 endpoint → 复制 **Signing Secret**（`whsec_...`）。
+2. 写入 Worker secret：
+
+   ```bash
+   cd mail-worker
+   npx wrangler secret put resend_webhook_secret
+   ```
+
+   也可以在 Cloudflare Dashboard → Workers & Pages → `otsmail` → Settings → Variables and Secrets → 添加加密变量 `resend_webhook_secret`。
+
+3. 未配置时 `/api/webhooks` 返回 503；配置后空/错误签名返回 401，合法 Svix 签名才处理事件。
+
 ### 恢复到新环境
 
 1. 新建 D1 / KV / R2，把新 ID 写进 `mail-worker/wrangler.toml`。
