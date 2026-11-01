@@ -58,7 +58,10 @@ const pushService = {
 		return Promise.all(subscriptions.map(async subscription => {
 			try {
 				const payload = await buildPushPayload(message, subscription, vapid);
-				const response = await fetch(subscription.endpoint, payload);
+				const response = await fetch(subscription.endpoint, {
+					...payload,
+					signal: AbortSignal.timeout(8000)
+				});
 				if (response.status === 404 || response.status === 410) {
 					await this.unsubscribe(c, subscription.endpoint, userId);
 				} else if (!response.ok) {

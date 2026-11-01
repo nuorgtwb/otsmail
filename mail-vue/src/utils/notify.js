@@ -5,6 +5,16 @@ import {pushKey, subscribePush, unsubscribePush} from '@/request/push.js'
 const ENABLE_KEY = 'desktopNotify'
 const LAST_KEY = 'desktopNotifyLast'
 
+export function notifyEnabled() {
+	return localStorage.getItem(ENABLE_KEY) === '1'
+}
+
+function emitNotify() {
+	if (typeof window !== 'undefined') {
+		window.dispatchEvent(new CustomEvent('otsmail:notify', { detail: { on: notifyEnabled() } }))
+	}
+}
+
 function urlBase64ToUint8Array(base64) {
 	const padding = '='.repeat((4 - base64.length % 4) % 4)
 	const raw = atob((base64 + padding).replace(/-/g, '+').replace(/_/g, '/'))
@@ -57,12 +67,9 @@ async function unsubscribeWebPush() {
 }
 
 // 申请权限并记下开关；返回最终是否可用
-export function notifyEnabled() {
-	return localStorage.getItem(ENABLE_KEY) === '1'
-}
-
 export async function enableNotify() {
 	if (!('Notification' in window)) {
+		emitNotify()
 		return { ok: false, reason: 'unsupported' }
 	}
 	let permission = Notification.permission
@@ -70,18 +77,22 @@ export async function enableNotify() {
 		permission = await Notification.requestPermission()
 	}
 	if (permission !== 'granted') {
+		emitNotify()
 		return { ok: false, reason: 'permission', permission }
 	}
 	const push = await subscribeWebPush()
 	if (!push.ok) {
+		emitNotify()
 		return { ok: false, reason: 'push', error: push.error }
 	}
 	localStorage.setItem(ENABLE_KEY, '1')
+	emitNotify()
 	return { ok: true }
 }
 
 export function disableNotify() {
 	localStorage.setItem(ENABLE_KEY, '0')
+	emitNotify()
 	unsubscribeWebPush()
 }
 

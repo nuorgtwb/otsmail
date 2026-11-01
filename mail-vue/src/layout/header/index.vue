@@ -86,7 +86,11 @@ const userStore = useUserStore();
 const uiStore = useUiStore();
 const emailStore = useEmailStore();
 const notifyOn = ref(notifyEnabled());
-const notifyBlocked = ref('Notification' in window && Notification.permission === 'denied')
+const notifyBlocked = ref('Notification' in window && Notification.permission === 'denied');
+function syncNotifyState() {
+  notifyOn.value = notifyEnabled()
+  notifyBlocked.value = 'Notification' in window && Notification.permission === 'denied'
+}
 const mobileSearchOpen = ref(false);
 const logoutLoading = ref(false)
 const userInfoShow = ref(false)
@@ -125,6 +129,7 @@ function openAiForEmail(event) {
 onMounted(() => {
   document.documentElement.lang = locale.value
   window.addEventListener('otsmail:ai', openAiForEmail)
+  window.addEventListener('otsmail:notify', syncNotifyState)
   // Repair a lost/expired push subscription after a browser restart or SW update.
   if (notifyOn.value && 'Notification' in window && Notification.permission === 'granted') {
     enableNotify().then(result => { if (!result.ok) notifyOn.value = false })
@@ -132,6 +137,7 @@ onMounted(() => {
 })
 onUnmounted(() => {
   window.removeEventListener('otsmail:ai', openAiForEmail)
+  window.removeEventListener('otsmail:notify', syncNotifyState)
 })
 const showMailSearch = computed(() => ['email', 'star', 'unread', 'deleted', 'spam', 'all-email', 'send', 'draft', 'contacts', 'user'].includes(route.name))
 const searchOptions = computed(() => {

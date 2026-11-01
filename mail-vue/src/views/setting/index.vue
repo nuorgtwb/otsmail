@@ -201,7 +201,7 @@
   </div>
 </template>
 <script setup>
-import {computed, reactive, ref, onMounted, defineOptions} from 'vue'
+import {computed, reactive, ref, onMounted, onUnmounted, defineOptions} from 'vue'
 import {Icon} from '@iconify/vue'
 import {
   resetPassword,
@@ -640,6 +640,9 @@ function copySecret() {
 
 const notifyOn = ref(notifyEnabled())
 const pushTesting = ref(false)
+const syncNotifyState = () => { notifyOn.value = notifyEnabled() }
+onMounted(() => window.addEventListener('otsmail:notify', syncNotifyState))
+onUnmounted(() => window.removeEventListener('otsmail:notify', syncNotifyState))
 
 async function sendTestPush() {
   if (pushTesting.value) return
