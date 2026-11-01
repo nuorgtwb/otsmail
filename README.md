@@ -308,8 +308,8 @@ DeepL / AI / OAuth 等供应商密钥
 - 登录连续失败会锁定并发送 Telegram 告警。
 - 密码使用 PBKDF2，Token 存储做了本地加密。
 - 支持 2FA、OIDC + PKCE、登录态绑定、账户级独立权限。
-- Resend 回调必须配置 `resend_webhook_secret`；当前未配置时仍处于 fail-open（会放行），这是已知待收口项，生产环境应尽快补上。
-- Telegram webhook 使用独立 secret，但旧 `jwt_secret` 仍保留兼容；在系统设置里重新保存一次 webhook 后，建议下一版移除兼容分支。
+- Resend 回调必须配置 `resend_webhook_secret`；未配置时 `/api/webhooks` 返回 503，不再放行未签名事件。
+- Telegram webhook 使用独立 secret；旧 `jwt_secret` 兼容已移除，重新保存 webhook 后才会是新的独立密钥。
 - Telegram 邮件查看链接 24 小时过期；旧链接失效属预期。
 - 管理员以角色 `type=0` 判定；从旧版本升级后，管理员需要重新登录一次。Worker 变量 `admin` 必须与登录邮箱完全一致。
 - 生产部署请使用独立 `jwt_secret`，不要提交任何密钥或 `.dev.vars`。
