@@ -4,6 +4,7 @@ import {pushKey, subscribePush, unsubscribePush} from '@/request/push.js'
 
 const ENABLE_KEY = 'desktopNotify'
 const LAST_KEY = 'desktopNotifyLast'
+const VAPID_KEY = 'desktopNotifyVapidKey'
 
 export function notifyEnabled() {
 	return localStorage.getItem(ENABLE_KEY) === '1'
@@ -41,11 +42,17 @@ async function subscribeWebPush() {
 			new Promise((_, reject) => setTimeout(() => reject(new Error('sw timeout')), 12000))
 		])
 		const subscription = await registration.pushManager.getSubscription()
+		const storedKey = localStorage.getItem(VAPID_KEY)
+		if (subscription && storedKey !== key) {
+			await subscription.unsubscribe()
+		}
+		const current = await registration.pushManager.getSubscription()
 			|| await registration.pushManager.subscribe({
 				userVisibleOnly: true,
 				applicationServerKey: urlBase64ToUint8Array(key)
 			})
-		await subscribePush(subscription.toJSON())
+		await subscribePush(current.toJSON())
+		localStorage.setItem(VAPID_KEY, key)
 		return { ok: true }
 	} catch (e) {
 		console.warn('Web Push subscription failed: ', e)
