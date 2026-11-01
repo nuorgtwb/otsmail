@@ -9,6 +9,10 @@ export function subscribePush(subscription) {
 	return http.post('/push/subscribe', subscription, {noMsg: true});
 }
 
+export function testPush() {
+	return http.post('/push/test', {}, {noMsg: true});
+}
+
 export function unsubscribePush(endpoint) {
 	return http.post('/push/unsubscribe', {endpoint}, {noMsg: true});
 }

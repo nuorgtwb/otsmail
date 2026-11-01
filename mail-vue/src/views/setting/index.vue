@@ -66,6 +66,7 @@
         <div>{{$t('browserNotify')}}</div>
         <div class="row-flex">
           <el-switch :model-value="notifyOn" @change="toggleNotify"/>
+          <el-button v-if="notifyOn" size="small" :loading="pushTesting" @click="sendTestPush">测试通知</el-button>
           <span class="row-desc">{{$t('browserNotifyDesc')}}</span>
         </div>
       </div>
@@ -223,6 +224,7 @@ import {clearToken} from "@/utils/token-store.js";
 import {oidcConfig, oauthBindings, oauthUnbind, oauthSetBindingActive} from "@/request/ouath.js";
 import {createPkce} from "@/utils/pkce.js";
 import {notifyEnabled, enableNotify, disableNotify} from "@/utils/notify.js";
+import {testPush} from "@/request/push.js";
 import {updateMySetting} from "@/request/my.js";
 
 const { t } = useI18n()
@@ -637,6 +639,32 @@ function copySecret() {
 // ---- 浏览器通知 ----
 
 const notifyOn = ref(notifyEnabled())
+const pushTesting = ref(false)
+
+async function sendTestPush() {
+  if (pushTesting.value) return
+  pushTesting.value = true
+  try {
+    const data = await testPush()
+    const results = data?.results || []
+    if (results.length === 0) {
+      ElMessage({message: '当前没有 Web Push 订阅', type: 'warning', plain: true})
+    } else {
+      const failed = results.filter(item => !item.ok)
+      ElMessage({
+        message: failed.length
+          ? `测试通知失败：${failed.map(item => item.status || item.error || 'unknown').join(', ')}`
+          : '测试通知已发送',
+        type: failed.length ? 'warning' : 'success',
+        plain: true
+      })
+    }
+  } catch (e) {
+    ElMessage({message: e?.message || '测试通知失败', type: 'error', plain: true})
+  } finally {
+    pushTesting.value = false
+  }
+}
 
 async function toggleNotify(value) {
   if (!value) {

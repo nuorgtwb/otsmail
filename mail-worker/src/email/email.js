@@ -211,7 +211,13 @@ export async function email(message, env, ctx) {
 			ctx.waitUntil(env.EMAIL_HUB.get(env.EMAIL_HUB.idFromName(String(emailRow.userId)))
 				.fetch('https://email-hub/notify', {
 					method: 'POST',
-					body: JSON.stringify({ type: 'email', emailId: emailRow.emailId })
+					body: JSON.stringify({
+						type: 'email',
+						emailId: emailRow.emailId,
+						subject: params.subject,
+						name: params.name,
+						text: String(params.text || '').slice(0, 120)
+					})
 				})
 				.catch(e => console.error('WebSocket notify failed: ', e)));
 		}

@@ -40,10 +40,10 @@ const pushService = {
 	async send(c, userId, { title, body, url = '/' }) {
 		const publicKey = c.env.VAPID_PUBLIC_KEY;
 		const privateKey = c.env.VAPID_PRIVATE_KEY;
-		if (!publicKey || !privateKey) return;
+		if (!publicKey || !privateKey) return [];
 
 		const subscriptions = await this.list(c, userId);
-		if (subscriptions.length === 0) return;
+		if (subscriptions.length === 0) return [];
 
 		const vapid = {
 			subject: c.env.VAPID_SUBJECT || 'mailto:admin@otscup.com',
@@ -55,15 +55,20 @@ const pushService = {
 			options: { ttl: 300 }
 		};
 
-		await Promise.allSettled(subscriptions.map(async subscription => {
+		return Promise.all(subscriptions.map(async subscription => {
 			try {
 				const payload = await buildPushPayload(message, subscription, vapid);
 				const response = await fetch(subscription.endpoint, payload);
 				if (response.status === 404 || response.status === 410) {
 					await this.unsubscribe(c, subscription.endpoint, userId);
+				} else if (!response.ok) {
+					const detail = await response.text().catch(() => '');
+					console.error(`Web Push failed status=${response.status} ${detail.slice(0, 200)}`);
 				}
+				return { ok: response.ok, status: response.status };
 			} catch (e) {
 				console.error('Web Push 发送失败: ', e);
+				return { ok: false, error: e?.message || String(e) };
 			}
 		}));
 	}

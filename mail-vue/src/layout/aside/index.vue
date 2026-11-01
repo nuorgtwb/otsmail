@@ -123,6 +123,7 @@ import db from "@/db/db.js";
 import {logout} from "@/request/login.js";
 import {clearToken} from "@/utils/token-store.js";
 import {startEmailEvents, stopEmailEvents} from "@/utils/email-events.js";
+import {notifyNewEmail} from "@/utils/notify.js";
 
 const settingStore = useSettingStore();
 const uiStore = useUiStore();
@@ -160,8 +161,9 @@ onMounted(() => {
   loadCounts();
   countTimer = setInterval(loadCounts, countRefreshMs.value);
   window.addEventListener('otsmail:counts', () => loadCounts(true));
-  startEmailEvents(() => {
+  startEmailEvents((email) => {
     loadCounts(true);
+    if (email?.subject) notifyNewEmail(email);
     window.dispatchEvent(new CustomEvent('otsmail:email'));
   });
 });
