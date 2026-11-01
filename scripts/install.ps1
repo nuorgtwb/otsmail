@@ -139,10 +139,10 @@ Step '上传前端到 R2'
 if ($workerUrl) {
   Step '初始化数据库'
   try {
-    $init = Invoke-WebRequest -UseBasicParsing "$workerUrl/api/init/$InitSecret" -TimeoutSec 120
+    $init = Invoke-WebRequest -UseBasicParsing "$workerUrl/api/init" -Headers @{ 'X-Init-Secret' = $InitSecret } -TimeoutSec 120
     Write-Host "init: $($init.StatusCode) $($init.Content)"
   } catch {
-    Write-Warning "自动初始化失败，请手动访问 $workerUrl/api/init/<init_secret>（已写入 Worker secret）：$_"
+    Write-Warning "自动初始化失败，请手动请求 $workerUrl/api/init 并带 X-Init-Secret 头（已写入 Worker secret）：$_"
   }
 }
 

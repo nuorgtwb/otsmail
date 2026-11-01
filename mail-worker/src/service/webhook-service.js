@@ -63,7 +63,6 @@ const webhookService = {
 			subject: email.subject,
 			text: email.text,
 			content: email.content,
-			code: email.code,
 			createTime: email.createTime
 		};
 

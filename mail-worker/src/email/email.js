@@ -49,13 +49,15 @@ export async function email(message, env, ctx) {
 		}
 
 		const reader = message.raw.getReader();
+		const decoder = new TextDecoder();
 		let content = '';
 
 		while (true) {
 			const { done, value } = await reader.read();
 			if (done) break;
-			content += new TextDecoder().decode(value);
+			content += decoder.decode(value, { stream: true });
 		}
+		content += decoder.decode();
 
 		const email = await PostalMime.parse(content);
 
@@ -137,9 +139,24 @@ export async function email(message, env, ctx) {
 		// 正常返回（不抛错、不拒收）是关键：让上游认为投递成功，停止重投。
 		if (params.messageId) {
 			const dup = await env.db.prepare(
-				'SELECT email_id FROM email WHERE message_id = ? AND to_email = ? AND type = 0 AND status IN (?, ?) LIMIT 1'
-			).bind(params.messageId, params.toEmail, emailConst.status.RECEIVE, emailConst.status.NOONE).first();
+				'SELECT email_id, status FROM email WHERE message_id = ? AND to_email = ? AND type = 0 AND status IN (?, ?, ?) LIMIT 1'
+			).bind(
+				params.messageId,
+				params.toEmail,
+				emailConst.status.RECEIVE,
+				emailConst.status.NOONE,
+				emailConst.status.SAVING
+			).first();
 			if (dup) {
+				// 上次已完成 receive() 但没走到 completeReceive()，收尾旧行，避免重投再插一条。
+				if (dup.status === emailConst.status.SAVING) {
+					await emailService.completeReceive(
+						{ env },
+						account ? emailConst.status.RECEIVE : emailConst.status.NOONE,
+						dup.email_id
+					);
+					console.log(`[dedup] completed stale saving row: messageId=${params.messageId} existingEmailId=${dup.email_id}`);
+				}
 				console.log(`[dedup] duplicate inbound dropped: messageId=${params.messageId} to=${params.toEmail} existingEmailId=${dup.email_id}`);
 				return;
 			}

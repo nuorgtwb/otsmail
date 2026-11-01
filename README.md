@@ -105,7 +105,7 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1
 4. 部署 Worker；
 5. 写入 `jwt_secret` 和独立的 `init_secret`；
 6. 上传 `mail-worker/dist` 到 R2；
-7. 调用 `/api/init/<init_secret>` 初始化数据库（只允许一次）。
+7. 调用 `/api/init` 并携带 `X-Init-Secret` 请求头初始化数据库（只允许一次）。
 
 也可以非交互传参：
 
@@ -153,8 +153,8 @@ pnpm build
 
 首次部署后访问：
 
-```text
-https://<你的域名>/api/init/<init_secret>
+```bash
+curl -H "X-Init-Secret: <init_secret>" https://<你的域名>/api/init
 ```
 
 然后在 Cloudflare Dashboard → Email Routing 里把邮箱域名的 catch-all 指向 `otsmail` Worker。

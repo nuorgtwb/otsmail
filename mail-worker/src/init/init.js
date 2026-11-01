@@ -5,7 +5,7 @@ import {emailConst} from "../const/entity-const";
 const dbInit = {
 	async init(c) {
 
-		const secret = c.req.param('secret');
+		const secret = c.req.header('x-init-secret') || '';
 
 		// 初始化接口只允许用独立 init_secret 触发一次，绝不能复用 JWT 密钥
 		if (!c.env.init_secret || secret !== c.env.init_secret) {

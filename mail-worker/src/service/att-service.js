@@ -234,6 +234,10 @@ const attService = {
 
 	async removeAttByField(c, fieldName, fieldValues) {
 
+		if (!['user_id', 'email_id', 'account_id'].includes(fieldName)) {
+			throw new Error(`unsupported attachment field: ${fieldName}`);
+		}
+
 		const sqlList = [];
 
 		fieldValues.forEach(value => {
