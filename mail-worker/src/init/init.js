@@ -56,6 +56,7 @@ const dbInit = {
 		await this.otsmail_20DB(c);
 		await this.otsmail_21DB(c);
 		await this.otsmail_22DB(c);
+		await this.otsmail_23DB(c);
 		await this.otsmail_9DB(c);
 		await settingService.refresh(c);
 		await c.env.kv.put('init_done', '1');
@@ -874,6 +875,10 @@ async otsmail_5DB(c) {
 			account_id INTEGER NOT NULL,
 			user_id INTEGER NOT NULL,
 			subject TEXT,
+			code TEXT NOT NULL DEFAULT '',
+			auth_spf TEXT NOT NULL DEFAULT '',
+			auth_dmarc TEXT NOT NULL DEFAULT '',
+			otp_link TEXT NOT NULL DEFAULT '',
 			content TEXT,
 			text TEXT,
 			create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -1041,6 +1046,24 @@ async otsmail_5DB(c) {
 			await c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_user_perm ON user_perm(user_id, perm_id);`).run();
 		} catch (e) {
 			console.warn(`user_perm: ${e.message}`);
+		}
+	},
+
+	async otsmail_23DB(c) {
+		try {
+			await c.env.db.prepare(`ALTER TABLE email ADD COLUMN auth_spf TEXT NOT NULL DEFAULT '';`).run();
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
+		}
+		try {
+			await c.env.db.prepare(`ALTER TABLE email ADD COLUMN auth_dmarc TEXT NOT NULL DEFAULT '';`).run();
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
+		}
+		try {
+			await c.env.db.prepare(`ALTER TABLE email ADD COLUMN otp_link TEXT NOT NULL DEFAULT '';`).run();
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
 		}
 	},
 

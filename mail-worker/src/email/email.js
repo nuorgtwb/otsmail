@@ -15,6 +15,7 @@ import webhookService from '../service/webhook-service';
 import pushService from '../service/push-service';
 import emailRules from '../utils/emailRules';
 import {matchFilterRules} from '../utils/filter-rules';
+import { parseAuthResults, extractOtp } from '../utils/mail-security';
 
 export async function email(message, env, ctx) {
 
@@ -100,7 +101,9 @@ export async function email(message, env, ctx) {
 		}
 
 		const toName = email.to.find(item => item.address === message.to)?.name || '';
-		const code = await aiService.extractCode({ env }, email, { aiCode, aiCodeFilter });
+		const auth = parseAuthResults(email.headers);
+		const otp = extractOtp(email);
+		const code = (await aiService.extractCode({ env }, email, { aiCode, aiCodeFilter })) || otp.code;
 		// 默认只跑本地规则；只有显式开启自动 AI 才在收信链路里调用模型
 		// 用户过滤器优先于 AI/本地分类；垃圾标记仍最高优先
 		const filterCategory = matchFilterRules(email, emailFilters);
@@ -115,6 +118,9 @@ export async function email(message, env, ctx) {
 			name: email.from.name || emailUtils.getName(email.from.address),
 			subject: email.subject,
 			code,
+			authSpf: auth.spf,
+			authDmarc: auth.dmarc,
+			otpLink: otp.link,
 			content: email.html,
 			text: email.text,
 			cc: email.cc ? JSON.stringify(email.cc) : '[]',

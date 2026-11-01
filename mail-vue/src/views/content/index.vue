@@ -103,6 +103,18 @@
             <el-alert v-if="email.status === 4" :closable="false" :title="$t('complained')" class="email-msg" type="warning" show-icon />
             <el-alert v-if="email.status === 5" :closable="false" :title="$t('delayed')" class="email-msg" type="warning" show-icon />
           </div>
+          <el-alert v-if="senderUnverified" class="sender-risk" type="warning" :closable="false" show-icon
+                    :title="$t('senderUnverified')" :description="$t('senderUnverifiedDesc')" />
+          <div v-if="email.code || email.otpLink" class="otp-bar">
+            <button v-if="email.code" type="button" class="otp-chip" @click="copyOtp">
+              <Icon icon="fluent-color:clipboard-24" width="16" height="16"/>
+              {{ $t('codeLabel') }}{{ email.code }}
+            </button>
+            <a v-if="email.otpLink" class="otp-link" :href="email.otpLink" target="_blank" rel="noopener noreferrer">
+              {{ $t('openVerifyLink') }}
+              <Icon icon="mdi:open-in-new" width="14" height="14"/>
+            </a>
+          </div>
           <div v-if="showSummary" class="ai-summary-card">
             <div class="ai-summary-head">
               <Icon icon="mdi:creation" width="18" height="18"/>
@@ -253,6 +265,7 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 const router = useRouter()
 const email = emailStore.contentData.email
+const senderUnverified = computed(() => email?.authDmarc === 'fail' || (email?.authDmarc !== 'pass' && email?.authSpf === 'fail'))
 const showPreview = ref(false)
 const showAttachmentPreview = ref(false)
 const attachmentUrl = ref('')
@@ -347,6 +360,16 @@ function senderInitial(name) {
   const v = String(name || email?.sendEmail || '?').trim()
   if (/^[\u3400-\u9fff]/.test(v)) return v.slice(0, 1)
   return v.split(/\s+/).map(x => x[0] || '').join('').slice(0, 2).toUpperCase() || '?'
+}
+
+async function copyOtp() {
+  if (!email?.code) return
+  try {
+    await navigator.clipboard.writeText(email.code)
+    ElMessage({message: t('copySuccessMsg'), type: 'success', plain: true})
+  } catch (e) {
+    ElMessage({message: t('copyFailMsg'), type: 'error', plain: true})
+  }
 }
 
 async function addSenderContact() {
@@ -1026,5 +1049,9 @@ const handleDelete = () => {
 .summary-refresh:hover,.summary-close:hover { background:var(--fill-quaternary); color:var(--rd-text); }
 .ai-summary-text,.ai-summary-loading,.ai-summary-error { margin-top:8px; font-size:12px; line-height:1.75; color:var(--rd-muted); white-space:pre-wrap; }
 .ai-summary-error { color:#d9534f; }
+.sender-risk { margin: 0 0 14px; }
+.otp-bar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:0 0 14px; }
+.otp-chip,.otp-link { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid var(--rd-line); border-radius:8px; background:var(--rd-panel); color:var(--rd-text); font-size:12px; cursor:pointer; text-decoration:none; }
+.otp-chip:hover,.otp-link:hover { border-color:var(--rd-accent); color:var(--rd-accent); }
 .spinning { animation: spin 1s linear infinite; }
 </style>
