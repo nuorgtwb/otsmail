@@ -1,4 +1,5 @@
 /* Web Push：页面关闭后也由 Service Worker 显示系统通知 */
+self.skipWaiting()
 self.addEventListener('push', event => {
   let data = {}
   try {
