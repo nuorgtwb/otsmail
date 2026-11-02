@@ -1,5 +1,6 @@
 <template>
   <div class="mcp-admin">
+    <settingsTabs/>
     <el-scrollbar class="scrollbar">
       <div class="page">
 

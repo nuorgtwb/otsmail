@@ -89,7 +89,7 @@ const routers = {
             menu: true
         }
     }, {
-        path: '/mcp',
+        path: '/mcp-admin',
         name: 'mcp',
         component: () => import('@/views/mcp/index.vue'),
         meta: {
