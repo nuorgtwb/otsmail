@@ -281,7 +281,7 @@ const emailService = {
 		}
 
 		const userRow = await userService.selectById(c, userId);
-		const roleRow = await roleService.selectById(c, userRow.type);
+		const roleRow = await roleService.selectById(c, userRow.type) || { sendCount: 0, sendType: 'ban' };
 
 		//判断接收方是不是全部为站内邮箱
 		const allInternal = recipients.every(email => {
