@@ -1,20 +1,20 @@
-## otsmail — 独立维护版 Worker 配置
+## otsmail â€” ç‹¬ç«‹ç»´æŠ¤ç‰ˆ Worker é…ç½®
 ##
-## ⚠️ Worker 名故意与上游 cloud-mail 不同。旧的 cloud-mail Worker（含其 D1/KV/R2
-##    和自定义域名路由）不受本项目部署影响，可以继续跑。确认过 `name` 不与账号里
-##    现有 Worker 冲突后再 deploy。
+## âš ï¸ Worker åæ•…æ„ä¸Žä¸Šæ¸¸ cloud-mail ä¸åŒã€‚æ—§çš„ cloud-mail Workerï¼ˆå«å…¶ D1/KV/R2
+##    å’Œè‡ªå®šä¹‰åŸŸåè·¯ç”±ï¼‰ä¸å—æœ¬é¡¹ç›®éƒ¨ç½²å½±å“ï¼Œå¯ä»¥ç»§ç»­è·‘ã€‚ç¡®è®¤è¿‡ `name` ä¸ä¸Žè´¦å·é‡Œ
+##    çŽ°æœ‰ Worker å†²çªåŽå† deployã€‚
 ##
-## ⚠️ jwt_secret 不要写在 [vars] 里（会进 git、Dashboard 明文可见）。
-##    改用 Worker Secret：
+## âš ï¸ jwt_secret ä¸è¦å†™åœ¨ [vars] é‡Œï¼ˆä¼šè¿› gitã€Dashboard æ˜Žæ–‡å¯è§ï¼‰ã€‚
+##    æ”¹ç”¨ Worker Secretï¼š
 ##        npx wrangler secret put jwt_secret
-##    代码读的还是 env.jwt_secret，无需改动。
+##    ä»£ç è¯»çš„è¿˜æ˜¯ env.jwt_secretï¼Œæ— éœ€æ”¹åŠ¨ã€‚
 
 name = "otsmail"
 account_id = "f475b3dcf291c33ae82ab0b595f81958"
 main = "src/index.js"
 compatibility_date = "2025-06-04"
-# MCP SDK (@modelcontextprotocol/sdk) 依赖 node:http 等 Node API，需启用 nodejs_compat，
-# 否则部署阶段 Cloudflare API 报 "No such module node:http" (code 10021) 并拒绝该版本。
+# MCP SDK (@modelcontextprotocol/sdk) ä¾èµ– node:http ç­‰ Node APIï¼Œéœ€å¯ç”¨ nodejs_compatï¼Œ
+# å¦åˆ™éƒ¨ç½²é˜¶æ®µ Cloudflare API æŠ¥ "No such module node:http" (code 10021) å¹¶æ‹’ç»è¯¥ç‰ˆæœ¬ã€‚
 compatibility_flags = ["nodejs_compat"]
 keep_vars = true
 
@@ -22,83 +22,83 @@ keep_vars = true
 enabled = true
 
 [[d1_databases]]
-binding = "db"			#d1数据库绑定名默认不可修改
+binding = "db"			#d1æ•°æ®åº“ç»‘å®šåé»˜è®¤ä¸å¯ä¿®æ”¹
 database_name = "otsmail"
 database_id = "4db24bf3-789c-4760-aa34-3e4bad705967"
 
 [[kv_namespaces]]
-binding = "kv"			#kv绑定名默认不可修改
+binding = "kv"			#kvç»‘å®šåé»˜è®¤ä¸å¯ä¿®æ”¹
 id = "8477df59698d4915afb7baaa000d4870"
 
 [[r2_buckets]]
-binding = "r2"			#r2对象存储绑定名默认不可修改
-## 直接共用旧 cloud-mail 的桶 mail-r2：
-## - 历史附件、背景图都在里面，公开域名 r2.atproxy.eu.org 已绑定它并就绪
-## - 新邮件附件写进同一个桶，前端按 r2_domain 拼 URL 立即可读
-## 迁移观察期后若要独立，再把对象整体迁到 otsmail-r2 并改这里 + 换绑公开域名。
+binding = "r2"			#r2å¯¹è±¡å­˜å‚¨ç»‘å®šåé»˜è®¤ä¸å¯ä¿®æ”¹
+## ç›´æŽ¥å…±ç”¨æ—§ cloud-mail çš„æ¡¶ mail-r2ï¼š
+## - åŽ†å²é™„ä»¶ã€èƒŒæ™¯å›¾éƒ½åœ¨é‡Œé¢ï¼Œå…¬å¼€åŸŸå r2.atproxy.eu.org å·²ç»‘å®šå®ƒå¹¶å°±ç»ª
+## - æ–°é‚®ä»¶é™„ä»¶å†™è¿›åŒä¸€ä¸ªæ¡¶ï¼Œå‰ç«¯æŒ‰ r2_domain æ‹¼ URL ç«‹å³å¯è¯»
+## è¿ç§»è§‚å¯ŸæœŸåŽè‹¥è¦ç‹¬ç«‹ï¼Œå†æŠŠå¯¹è±¡æ•´ä½“è¿åˆ° otsmail-r2 å¹¶æ”¹è¿™é‡Œ + æ¢ç»‘å…¬å¼€åŸŸåã€‚
 bucket_name = "mail-r2"
 
 #[[send_email]]
-#name = "email"			#CF发件, 配置后优先使用
+#name = "email"			#CFå‘ä»¶, é…ç½®åŽä¼˜å…ˆä½¿ç”¨
 
 [ai]
 binding = "ai"
 
-## [assets] 已弃用：Cloudflare Assets 绑定存储层损坏(所有静态资源返回 0 字节)，
-## 前端改用 R2 托管 (web-asset-service.js 从 env.r2 读 web/ 前缀)。保留配置注释备查。
+## [assets] å·²å¼ƒç”¨ï¼šCloudflare Assets ç»‘å®šå­˜å‚¨å±‚æŸå(æ‰€æœ‰é™æ€èµ„æºè¿”å›ž 0 å­—èŠ‚)ï¼Œ
+## å‰ç«¯æ”¹ç”¨ R2 æ‰˜ç®¡ (web-asset-service.js ä»Ž env.r2 è¯» web/ å‰ç¼€)ã€‚ä¿ç•™é…ç½®æ³¨é‡Šå¤‡æŸ¥ã€‚
 #[assets]
 #binding = "assets"
 #directory = "./dist"
 #not_found_handling = "single-page-application"
 #run_worker_first = true
 
-## [triggers] cron 每日刷分析缓存 —— 免费档「每账号 5 个 cron」已满，暂不启用。
-## 需要的话改用本机 Hermes cron 定时打 /api 端点（不占 CF 配额）。
+## [triggers] cron æ¯æ—¥åˆ·åˆ†æžç¼“å­˜ â€”â€” å…è´¹æ¡£ã€Œæ¯è´¦å· 5 ä¸ª cronã€å·²æ»¡ï¼Œæš‚ä¸å¯ç”¨ã€‚
+## éœ€è¦çš„è¯æ”¹ç”¨æœ¬æœº Hermes cron å®šæ—¶æ‰“ /api ç«¯ç‚¹ï¼ˆä¸å  CF é…é¢ï¼‰ã€‚
 [triggers]
-crons = ["*/30 * * * *"]	#每天晚上12点执行每日任务,刷新分析缓存
+crons = ["*/30 * * * *"]	#æ¯å¤©æ™šä¸Š12ç‚¹æ‰§è¡Œæ¯æ—¥ä»»åŠ¡,åˆ·æ–°åˆ†æžç¼“å­˜
 
 
 [vars]
-## Workers 免费档：口令哈希轮数下调到 8000（约 5ms），否则登录/注册会 1102 CPU 超时。
-## 仍远强于上游单轮 SHA-256；轮数写在哈希里，将来升付费档改回 210000 不影响老用户。
-pwd_iterations = 8000
-domain = ["atproxy.eu.org", "otscup.com"]	#邮件域名，@ 后面部分，可多个
-admin = "admin@atproxy.eu.org"				#管理员邮箱
-## N-02 分流开关：Google/Gmail 来源邮件只 TG+保存，不转发到 Outlook/QQ（默认 false 零回归）
-## 曾用 --var 临时注入导致后续部署丢失、N-02 回归；固化到 [vars] 使任何部署都保留（非敏感，可入 git）。
+## Workers å…è´¹æ¡£ï¼šå£ä»¤å“ˆå¸Œè½®æ•°ä¸‹è°ƒåˆ° 8000ï¼ˆçº¦ 5msï¼‰ï¼Œå¦åˆ™ç™»å½•/æ³¨å†Œä¼š 1102 CPU è¶…æ—¶ã€‚
+## ä»è¿œå¼ºäºŽä¸Šæ¸¸å•è½® SHA-256ï¼›è½®æ•°å†™åœ¨å“ˆå¸Œé‡Œï¼Œå°†æ¥å‡ä»˜è´¹æ¡£æ”¹å›ž 210000 ä¸å½±å“è€ç”¨æˆ·ã€‚
+pwd_iterations = 210000
+domain = ["atproxy.eu.org", "otscup.com"]	#é‚®ä»¶åŸŸåï¼Œ@ åŽé¢éƒ¨åˆ†ï¼Œå¯å¤šä¸ª
+admin = "admin@atproxy.eu.org"				#ç®¡ç†å‘˜é‚®ç®±
+## N-02 åˆ†æµå¼€å…³ï¼šGoogle/Gmail æ¥æºé‚®ä»¶åª TG+ä¿å­˜ï¼Œä¸è½¬å‘åˆ° Outlook/QQï¼ˆé»˜è®¤ false é›¶å›žå½’ï¼‰
+## æ›¾ç”¨ --var ä¸´æ—¶æ³¨å…¥å¯¼è‡´åŽç»­éƒ¨ç½²ä¸¢å¤±ã€N-02 å›žå½’ï¼›å›ºåŒ–åˆ° [vars] ä½¿ä»»ä½•éƒ¨ç½²éƒ½ä¿ç•™ï¼ˆéžæ•æ„Ÿï¼Œå¯å…¥ gitï¼‰ã€‚
 SKIP_FORWARD_GMAIL_FORWARDED = true
-## N-02 分流主信号（架构 §4.11 v1.3）：收件地址命中此 Gmail 定向通道即判 Google 来源只进 TG。
-## 该地址不对外公开，整体视为 Google 转发通道；163 等非 Google 来源直发到此也归此通道(419 代价样本,豆豆已接受)。
+## N-02 åˆ†æµä¸»ä¿¡å·ï¼ˆæž¶æž„ Â§4.11 v1.3ï¼‰ï¼šæ”¶ä»¶åœ°å€å‘½ä¸­æ­¤ Gmail å®šå‘é€šé“å³åˆ¤ Google æ¥æºåªè¿› TGã€‚
+## è¯¥åœ°å€ä¸å¯¹å¤–å…¬å¼€ï¼Œæ•´ä½“è§†ä¸º Google è½¬å‘é€šé“ï¼›163 ç­‰éž Google æ¥æºç›´å‘åˆ°æ­¤ä¹Ÿå½’æ­¤é€šé“(419 ä»£ä»·æ ·æœ¬,è±†è±†å·²æŽ¥å—)ã€‚
 GMAIL_ROUTING_INBOX = "gmail@otscup.com"
-## OAuth provider 显示开关（git_github_switch/google_switch）：已启用且豆豆实测通过，固化进 toml
-## 防止后续 worker 部署丢开关导致登录按钮消失（同类 --var 注入丢失根因）。
+## OAuth provider æ˜¾ç¤ºå¼€å…³ï¼ˆgit_github_switch/google_switchï¼‰ï¼šå·²å¯ç”¨ä¸”è±†è±†å®žæµ‹é€šè¿‡ï¼Œå›ºåŒ–è¿› toml
+## é˜²æ­¢åŽç»­ worker éƒ¨ç½²ä¸¢å¼€å…³å¯¼è‡´ç™»å½•æŒ‰é’®æ¶ˆå¤±ï¼ˆåŒç±» --var æ³¨å…¥ä¸¢å¤±æ ¹å› ï¼‰ã€‚
 github_switch = true
 google_switch = true
-## MCP 开关：默认关(OFF)。MCP 是自动化入口，需显式开启；开启后才能用 AI 客户端收发/删邮件。
+## MCP å¼€å…³ï¼šé»˜è®¤å…³(OFF)ã€‚MCP æ˜¯è‡ªåŠ¨åŒ–å…¥å£ï¼Œéœ€æ˜¾å¼å¼€å¯ï¼›å¼€å¯åŽæ‰èƒ½ç”¨ AI å®¢æˆ·ç«¯æ”¶å‘/åˆ é‚®ä»¶ã€‚
 mcp_switch = true
-#ai_model = ""			#ai模型,不填默认使用@cf/meta/llama-3.1-8b-instruct-fast
-#analysis_cache = false			#是否开启分析数据缓存
-#orm_log = false			#是否sql日志
-#domain = []				#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
-#admin = ""				#管理员的邮箱	示例: admin@example.com
-## jwt_secret 见文件头：用 `wrangler secret put jwt_secret`，不要写在这里。
-## allow_origin 可选：跨域白名单，逗号分隔。不设时只允许同源（推荐留空）。
-##   示例: allow_origin = "https://mail.example.com"
+#ai_model = ""			#aiæ¨¡åž‹,ä¸å¡«é»˜è®¤ä½¿ç”¨@cf/meta/llama-3.1-8b-instruct-fast
+#analysis_cache = false			#æ˜¯å¦å¼€å¯åˆ†æžæ•°æ®ç¼“å­˜
+#orm_log = false			#æ˜¯å¦sqlæ—¥å¿—
+#domain = []				#é‚®ä»¶åŸŸåå¯å¯é…ç½®å¤šä¸ª ç¤ºä¾‹: ["example1.com","example2.com"]
+#admin = ""				#ç®¡ç†å‘˜çš„é‚®ç®±	ç¤ºä¾‹: admin@example.com
+## jwt_secret è§æ–‡ä»¶å¤´ï¼šç”¨ `wrangler secret put jwt_secret`ï¼Œä¸è¦å†™åœ¨è¿™é‡Œã€‚
+## allow_origin å¯é€‰ï¼šè·¨åŸŸç™½åå•ï¼Œé€—å·åˆ†éš”ã€‚ä¸è®¾æ—¶åªå…è®¸åŒæºï¼ˆæŽ¨èç•™ç©ºï¼‰ã€‚
+##   ç¤ºä¾‹: allow_origin = "https://mail.example.com"
 #allow_origin = ""
-## pwd_iterations 可选：口令哈希（PBKDF2-SHA256）轮数。
-##   不设 = 210000（OWASP 推荐），单次约 120ms CPU —— 需要 Workers 付费档。
-##   ⚠️ Workers 免费档限 10ms CPU/请求，必须下调，否则登录/注册会 1102 超时：
-##   免费档建议 pwd_iterations = 8000（约 5ms，仍远强于上游的单轮 SHA-256）。
-##   轮数写在哈希里，随时改配置不会让老用户登不上。
-#pwd_iterations = 8000
+## pwd_iterations å¯é€‰ï¼šå£ä»¤å“ˆå¸Œï¼ˆPBKDF2-SHA256ï¼‰è½®æ•°ã€‚
+##   ä¸è®¾ = 210000ï¼ˆOWASP æŽ¨èï¼‰ï¼Œå•æ¬¡çº¦ 120ms CPU â€”â€” éœ€è¦ Workers ä»˜è´¹æ¡£ã€‚
+##   âš ï¸ Workers å…è´¹æ¡£é™ 10ms CPU/è¯·æ±‚ï¼Œå¿…é¡»ä¸‹è°ƒï¼Œå¦åˆ™ç™»å½•/æ³¨å†Œä¼š 1102 è¶…æ—¶ï¼š
+##   å…è´¹æ¡£å»ºè®® pwd_iterations = 8000ï¼ˆçº¦ 5msï¼Œä»è¿œå¼ºäºŽä¸Šæ¸¸çš„å•è½® SHA-256ï¼‰ã€‚
+##   è½®æ•°å†™åœ¨å“ˆå¸Œé‡Œï¼Œéšæ—¶æ”¹é…ç½®ä¸ä¼šè®©è€ç”¨æˆ·ç™»ä¸ä¸Šã€‚
+#pwd_iterations = 210000
 
-## [build] 本机 8.5GB 内存跑 pnpm build 会 OOM（exit 3221226505）。
-## dist 已由独立的 `pnpm --prefix ../mail-vue run build` 预先构建好，deploy 直接上传。
-## 需要重建前端时单独跑上面那条命令，别让 wrangler 的 build hook 触发。
+## [build] æœ¬æœº 8.5GB å†…å­˜è·‘ pnpm build ä¼š OOMï¼ˆexit 3221226505ï¼‰ã€‚
+## dist å·²ç”±ç‹¬ç«‹çš„ `pnpm --prefix ../mail-vue run build` é¢„å…ˆæž„å»ºå¥½ï¼Œdeploy ç›´æŽ¥ä¸Šä¼ ã€‚
+## éœ€è¦é‡å»ºå‰ç«¯æ—¶å•ç‹¬è·‘ä¸Šé¢é‚£æ¡å‘½ä»¤ï¼Œåˆ«è®© wrangler çš„ build hook è§¦å‘ã€‚
 #[build]
 #command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"
 
-# Web Push��VAPID����Կ�ɹ�����˽Կ�� wrangler secret put VAPID_PRIVATE_KEY ����
+# Web Push£¨VAPID£©¹«Ô¿¿É¹«¿ª£»Ë½Ô¿ÓÃ wrangler secret put VAPID_PRIVATE_KEY ÅäÖÃ
 VAPID_SUBJECT = "mailto:admin@otscup.com"
 VAPID_PUBLIC_KEY = "BP1f-0NK1Bc8ZbsJKr8DfoE6qXoNssMpXKWNISEt2ettQFQEWPJP6yKuu71MLFkKB504xa4r40G11ZQNKOt6XJ8"
 
