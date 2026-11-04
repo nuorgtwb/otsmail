@@ -43,10 +43,65 @@ describe('crypto-utils / 口令哈希', () => {
 		it('调整轮数后，旧轮数的哈希仍能登录（轮数写在哈希里）', async () => {
 			const lowCtx = { env: { pwd_iterations: 8000 } };
 			const { salt, hash } = await cryptoUtils.hashPassword('MyPass123', lowCtx);
-			expect(hash.startsWith('pbkdf2$8000$')).toBe(true);
+			expect(hash.startsWith('pbkdf2$8000
+	});
+
+	describe('旧库兼容（单轮 SHA-256）', () => {
+		it('旧格式哈希被识别为 legacy 且仍可登录', async () => {
+			const salt = cryptoUtils.generateSalt();
+			const legacy = await cryptoUtils.legacySha256('OldPwd1', salt);
+			expect(cryptoUtils.isLegacyHash(legacy)).toBe(true);
+			await expect(cryptoUtils.verifyPassword('OldPwd1', salt, legacy)).resolves.toBe(true);
+			await expect(cryptoUtils.verifyPassword('OldPwd2', salt, legacy)).resolves.toBe(false);
+		});
+
+		it('空哈希不通过', async () => {
+			await expect(cryptoUtils.verifyPassword('x', 'y', '')).resolves.toBe(false);
+			await expect(cryptoUtils.verifyPassword('x', 'y', null)).resolves.toBe(false);
+		});
+	});
+
+	describe('随机口令使用 CSPRNG', () => {
+		it('长度正确且无碰撞', () => {
+			const set = new Set();
+			for (let i = 0; i < 300; i++) set.add(cryptoUtils.genRandomPwd(16));
+			expect(set.size).toBe(300);
+			expect(cryptoUtils.genRandomPwd(16)).toHaveLength(16);
+			expect(cryptoUtils.genRandomPwd(8)).toHaveLength(8);
+		});
+
+		it('字符分布覆盖足够广（无明显偏置）', () => {
+			const bulk = Array.from({ length: 80 }, () => cryptoUtils.genRandomPwd(16)).join('');
+			expect(new Set(bulk).size).toBeGreaterThan(40);
+		});
+	});
+
+	describe('timingSafeEqual', () => {
+		it('相同为 true，不同/长度不同/非字符串为 false', () => {
+			expect(cryptoUtils.timingSafeEqual('abc', 'abc')).toBe(true);
+			expect(cryptoUtils.timingSafeEqual('abc', 'abd')).toBe(false);
+			expect(cryptoUtils.timingSafeEqual('abc', 'abcd')).toBe(false);
+			expect(cryptoUtils.timingSafeEqual(null, 'abc')).toBe(false);
+			expect(cryptoUtils.timingSafeEqual(undefined, undefined)).toBe(false);
+		});
+	});
+});
+)).toBe(true);
 
 			// 配置改回默认后，老哈希依然可校验
 			await expect(cryptoUtils.verifyPassword('MyPass123', salt, hash)).resolves.toBe(true);
+		});
+
+		it('识别低轮数 PBKDF2，并在成功登录后要求升级', async () => {
+			const lowCtx = { env: { pwd_iterations: 8000 } };
+			const { hash } = await cryptoUtils.hashPassword('MyPass123', lowCtx);
+			expect(cryptoUtils.needsRehash(hash)).toBe(true);
+			expect(cryptoUtils.needsRehash(hash, lowCtx)).toBe(false);
+		});
+
+		it('拒绝超出上限或格式错误的 PBKDF2 轮数', async () => {
+			await expect(cryptoUtils.verifyPassword('x', 'salt', 'pbkdf2$1000001$abc')).resolves.toBe(false);
+			await expect(cryptoUtils.verifyPassword('x', 'salt', 'pbkdf2$not-a-number$abc')).resolves.toBe(false);
 		});
 	});
 
