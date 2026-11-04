@@ -7,15 +7,15 @@ jobs:
   Deploy-otsmail:
     name: 🏗️ Build and Deploy
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
 
     env:
       NAME: ${{ secrets.NAME || vars.NAME || 'otsmail' }}
       CUSTOM_DOMAIN: ${{ secrets.CUSTOM_DOMAIN || vars.CUSTOM_DOMAIN }}
       DOMAIN: ${{ secrets.DOMAIN || vars.DOMAIN }}
       ADMIN: ${{ secrets.ADMIN || vars.ADMIN }}
-      JWT_SECRET: ${{ secrets.JWT_SECRET || vars.JWT_SECRET }}
-      INIT_SECRET: ${{ secrets.INIT_SECRET || vars.INIT_SECRET }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || vars.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
       D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID || vars.D1_DATABASE_ID }}
       KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID || vars.KV_NAMESPACE_ID }}
@@ -25,7 +25,6 @@ jobs:
       CLOUDFLARE_EMAIL: ${{ secrets.CF_EMAIL || vars.CF_EMAIL || false }}
       ANALYSIS_CACHE: ${{ secrets.ANALYSIS_CACHE || vars.ANALYSIS_CACHE || false }}
       LINUXDO_CLIENT_ID: ${{ secrets.LINUXDO_CLIENT_ID || vars.LINUXDO_CLIENT_ID }}
-      LINUXDO_CLIENT_SECRET: ${{ secrets.LINUXDO_CLIENT_SECRET || vars.LINUXDO_CLIENT_SECRET }}
       LINUXDO_CALLBACK_URL: ${{ secrets.LINUXDO_CALLBACK_URL || vars.LINUXDO_CALLBACK_URL }}
       LINUXDO_SWITCH: ${{ secrets.LINUXDO_SWITCH || vars.LINUXDO_SWITCH }}
 
@@ -60,6 +59,11 @@ jobs:
 
       - name: 🛠️ 设置环境 / Set up environment
         working-directory: ./mail-worker
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET || vars.JWT_SECRET }}
+          INIT_SECRET: ${{ secrets.INIT_SECRET || vars.INIT_SECRET }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          LINUXDO_CLIENT_SECRET: ${{ secrets.LINUXDO_CLIENT_SECRET || vars.LINUXDO_CLIENT_SECRET }}
         run: |
           
           echo "🔐 Starting environment setup..."
@@ -127,13 +131,11 @@ jobs:
           sed -i "s|\${CUSTOM_DOMAIN}|${CUSTOM_DOMAIN}|g" "$CONFIG_FILE"
           sed -i "s|\"\${DOMAIN}\"|${DOMAIN}|g" "$CONFIG_FILE"
           sed -i "s|\${ADMIN}|${ADMIN}|g" "$CONFIG_FILE"
-          sed -i "s|\${JWT_SECRET}|${JWT_SECRET}|g" "$CONFIG_FILE"
           sed -i "s|\${R2_BUCKET_NAME}|${R2_BUCKET_NAME}|g" "$CONFIG_FILE"
           sed -i "s|\${PROJECT_LINK}|${PROJECT_LINK}|g" "$CONFIG_FILE"
           sed -i "s|\${ANALYSIS_CACHE}|${ANALYSIS_CACHE}|g" "$CONFIG_FILE"
           sed -i "s|\${AI_MODEL}|${AI_MODEL}|g" "$CONFIG_FILE"
           sed -i "s|\${LINUXDO_CLIENT_ID}|${LINUXDO_CLIENT_ID}|g" "$CONFIG_FILE"
-          sed -i "s|\${LINUXDO_CLIENT_SECRET}|${LINUXDO_CLIENT_SECRET}|g" "$CONFIG_FILE"
           sed -i "s|\${LINUXDO_CALLBACK_URL}|${LINUXDO_CALLBACK_URL}|g" "$CONFIG_FILE"
           sed -i "s|\${LINUXDO_SWITCH}|${LINUXDO_SWITCH}|g" "$CONFIG_FILE"
           
@@ -141,6 +143,9 @@ jobs:
 
       - name: ⚡ 设置KV数据库 / Set up KV database
         working-directory: ./mail-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           
           CONFIG_FILE="wrangler-action.toml"
@@ -179,6 +184,9 @@ jobs:
 
       - name: 🐬 设置D1数据库 / Set up D1 database
         working-directory: ./mail-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           
           CONFIG_FILE="wrangler-action.toml"
@@ -218,6 +226,9 @@ jobs:
       - name: 🚀 开始部署 / Start deployment
         id: deploy
         working-directory: ./mail-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           echo "🚀 Starting deployment..."
           pnpm wrangler deploy -c wrangler-action.toml 2>&1 \
@@ -240,11 +251,24 @@ jobs:
           echo "worker_url=$WORKER_URL" >> $GITHUB_OUTPUT
           echo "✅ Setup completed."
 
-      - name: 🔑 写入初始化密钥 / Set init secret
+      - name: 🔐 写入 Worker 运行密钥 / Set Worker secrets
         working-directory: ./mail-worker
-        run: echo "$INIT_SECRET" | pnpm wrangler secret put init_secret -c wrangler-action.toml
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET || vars.JWT_SECRET }}
+          INIT_SECRET: ${{ secrets.INIT_SECRET || vars.INIT_SECRET }}
+          LINUXDO_CLIENT_SECRET: ${{ secrets.LINUXDO_CLIENT_SECRET || vars.LINUXDO_CLIENT_SECRET }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          printf '%s' "$JWT_SECRET" | pnpm wrangler secret put jwt_secret -c wrangler-action.toml
+          printf '%s' "$INIT_SECRET" | pnpm wrangler secret put init_secret -c wrangler-action.toml
+          if [ -n "$LINUXDO_CLIENT_SECRET" ]; then
+            printf '%s' "$LINUXDO_CLIENT_SECRET" | pnpm wrangler secret put linuxdo_client_secret -c wrangler-action.toml
+          fi
 
       - name: ♻️ 初始化数据库 / Initialize database
+        env:
+          INIT_SECRET: ${{ secrets.INIT_SECRET || vars.INIT_SECRET }}
         run: |
           echo "🛠️ Starting database initialization..."
           sleep 15
