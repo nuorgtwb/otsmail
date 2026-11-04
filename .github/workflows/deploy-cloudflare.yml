@@ -53,6 +53,13 @@ jobs:
         run: pnpm install --frozen-lockfile
         working-directory: ./mail-worker
 
+      # Build the frontend before any Cloudflare credentials are exposed.
+      - name: 🧱 构建前端 / Build frontend
+        working-directory: ./mail-worker
+        run: |
+          pnpm --prefix ../mail-vue install --frozen-lockfile
+          pnpm --prefix ../mail-vue run build
+
       - name: 📡 禁用 Wrangler 遥测 / Disable wrangler telemetry
         working-directory: ./mail-worker
         run: pnpm wrangler telemetry disable
@@ -60,10 +67,9 @@ jobs:
       - name: 🛠️ 设置环境 / Set up environment
         working-directory: ./mail-worker
         env:
-          JWT_SECRET: ${{ secrets.JWT_SECRET || vars.JWT_SECRET }}
-          INIT_SECRET: ${{ secrets.INIT_SECRET || vars.INIT_SECRET }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          LINUXDO_CLIENT_SECRET: ${{ secrets.LINUXDO_CLIENT_SECRET || vars.LINUXDO_CLIENT_SECRET }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          INIT_SECRET: ${{ secrets.INIT_SECRET }}
+          LINUXDO_CLIENT_SECRET: ${{ secrets.LINUXDO_CLIENT_SECRET }}
         run: |
           
           echo "🔐 Starting environment setup..."
@@ -89,11 +95,6 @@ jobs:
           
           if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "❌ CLOUDFLARE_ACCOUNT_ID variable cannot be empty."
-            exit 1
-          fi
-          
-          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "❌ CLOUDFLARE_API_TOKEN variable cannot be empty."
             exit 1
           fi
           
