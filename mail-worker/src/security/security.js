@@ -132,7 +132,12 @@ app.use('*', async (c, next) => {
 	if (mcpAuth) {
 		const mcpOn = c.env.mcp_switch === true || String(c.env.mcp_switch).toLowerCase() === 'true';
 		if (!mcpOn) throw new BizError('MCP is disabled', 401);
-		if (!path.startsWith('/mcp')) throw new BizError('MCP token only valid for /mcp', 403);
+		// MCP bearer tokens are scoped to the JSON-RPC endpoint only.
+		// The /mcp prefix also contains token/client administration routes,
+		// which must remain accessible only with a regular user JWT.
+		if (path !== '/mcp' || c.req.method !== 'POST') {
+			throw new BizError('MCP token only valid for POST /mcp', 403);
+		}
 	}
 
 	const result = mcpAuth ? { userId: mcpAuth.userId, token: null, viaMcp: true } : await jwtUtils.verifyToken(c, jwt);
