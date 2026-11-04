@@ -234,9 +234,9 @@ const loginService = {
 			throw new BizError(t('IncorrectPwd'));
 		}
 
-		// 口令哈希平滑升级：旧库里的单轮 SHA-256 在本次登录成功后就地换成
-		// PBKDF2，用户无感。失败不影响登录（下次登录再试）。
-		if (!noVerifyPwd && password && cryptoUtils.isLegacyHash(userRow.password)) {
+		// 口令哈希平滑升级：旧版单轮 SHA-256 和低轮数 PBKDF2
+		// 都在本次登录成功后就地升级到当前配置，避免强制重置密码。
+		if (!noVerifyPwd && password && cryptoUtils.needsRehash(userRow.password, c)) {
 			try {
 				const { salt, hash } = await cryptoUtils.hashPassword(password, c);
 				await userService.updatePwd(c, userRow.userId, hash, salt);
