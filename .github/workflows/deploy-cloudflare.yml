@@ -255,9 +255,9 @@ jobs:
       - name: 🔐 写入 Worker 运行密钥 / Set Worker secrets
         working-directory: ./mail-worker
         env:
-          JWT_SECRET: ${{ secrets.JWT_SECRET || vars.JWT_SECRET }}
-          INIT_SECRET: ${{ secrets.INIT_SECRET || vars.INIT_SECRET }}
-          LINUXDO_CLIENT_SECRET: ${{ secrets.LINUXDO_CLIENT_SECRET || vars.LINUXDO_CLIENT_SECRET }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          INIT_SECRET: ${{ secrets.INIT_SECRET }}
+          LINUXDO_CLIENT_SECRET: ${{ secrets.LINUXDO_CLIENT_SECRET }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
@@ -269,7 +269,7 @@ jobs:
 
       - name: ♻️ 初始化数据库 / Initialize database
         env:
-          INIT_SECRET: ${{ secrets.INIT_SECRET || vars.INIT_SECRET }}
+          INIT_SECRET: ${{ secrets.INIT_SECRET }}
         run: |
           echo "🛠️ Starting database initialization..."
           sleep 15
