@@ -100,54 +100,9 @@ const saltHashUtils = {
 	needsRehash(storedHash, c) {
 		if (!storedHash) return false;
 		if (this.isLegacyHash(storedHash)) return true;
-		const parts = storedHash.split('
-
-		// 旧格式回退
-		const legacy = await this.legacySha256(inputPassword, salt);
-		return this.timingSafeEqual(legacy, storedHash);
-	},
-
-	/** 定长比较，避免按字符早退泄露信息 */
-	timingSafeEqual(a, b) {
-		if (typeof a !== 'string' || typeof b !== 'string') return false;
-		if (a.length !== b.length) return false;
-		let diff = 0;
-		for (let i = 0; i < a.length; i++) {
-			diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-		}
-		return diff === 0;
-	},
-
-	/**
-	 * 随机口令
-	 *
-	 * 上游用 Math.random()，它不是密码学安全的随机源（V8 的 xorshift128+ 可从
-	 * 少量输出反推内部状态）。批量建号接口 /public/addUser 用它生成用户初始密码，
-	 * 等于可预测。改用 crypto.getRandomValues，并去掉取模偏置。
-	 */
-	genRandomPwd(length = 16) {
-		const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*';
-		const charsLen = chars.length;
-		// 拒绝采样上界：落在 [limit, 256) 的字节丢弃，保证均匀分布
-		const limit = 256 - (256 % charsLen);
-		let result = '';
-		const buf = new Uint8Array(length * 2);
-		while (result.length < length) {
-			crypto.getRandomValues(buf);
-			for (let i = 0; i < buf.length && result.length < length; i++) {
-				if (buf[i] < limit) {
-					result += chars.charAt(buf[i] % charsLen);
-				}
-			}
-		}
-		return result;
-	}
-};
-
-export default saltHashUtils;
-);
+		const parts = storedHash.split('$');
 		const iterations = Number(parts[1]);
-		if (!Number.isSafeInteger(iterations) || iterations < MIN_ITERATIONS || iterations > MAX_ITERATIONS) {
+		if (parts.length !== 3 || !Number.isSafeInteger(iterations) || iterations < MIN_ITERATIONS || iterations > MAX_ITERATIONS) {
 			return true;
 		}
 		return iterations < this.resolveIterations(c);
@@ -158,52 +113,7 @@ export default saltHashUtils;
 
 		if (storedHash.startsWith(PBKDF2_PREFIX)) {
 			// pbkdf2$<iterations>$<b64>
-			const parts = storedHash.split('
-
-		// 旧格式回退
-		const legacy = await this.legacySha256(inputPassword, salt);
-		return this.timingSafeEqual(legacy, storedHash);
-	},
-
-	/** 定长比较，避免按字符早退泄露信息 */
-	timingSafeEqual(a, b) {
-		if (typeof a !== 'string' || typeof b !== 'string') return false;
-		if (a.length !== b.length) return false;
-		let diff = 0;
-		for (let i = 0; i < a.length; i++) {
-			diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-		}
-		return diff === 0;
-	},
-
-	/**
-	 * 随机口令
-	 *
-	 * 上游用 Math.random()，它不是密码学安全的随机源（V8 的 xorshift128+ 可从
-	 * 少量输出反推内部状态）。批量建号接口 /public/addUser 用它生成用户初始密码，
-	 * 等于可预测。改用 crypto.getRandomValues，并去掉取模偏置。
-	 */
-	genRandomPwd(length = 16) {
-		const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*';
-		const charsLen = chars.length;
-		// 拒绝采样上界：落在 [limit, 256) 的字节丢弃，保证均匀分布
-		const limit = 256 - (256 % charsLen);
-		let result = '';
-		const buf = new Uint8Array(length * 2);
-		while (result.length < length) {
-			crypto.getRandomValues(buf);
-			for (let i = 0; i < buf.length && result.length < length; i++) {
-				if (buf[i] < limit) {
-					result += chars.charAt(buf[i] % charsLen);
-				}
-			}
-		}
-		return result;
-	}
-};
-
-export default saltHashUtils;
-);
+			const parts = storedHash.split('$');
 			const iterations = Number(parts[1]);
 			if (parts.length !== 3 || !Number.isSafeInteger(iterations) || iterations < MIN_ITERATIONS || iterations > MAX_ITERATIONS) return false;
 			const computed = await this.pbkdf2(inputPassword, salt, iterations);
