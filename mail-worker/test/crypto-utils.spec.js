@@ -40,6 +40,10 @@ describe('crypto-utils / 口令哈希', () => {
 			expect(cryptoUtils.resolveIterations({ env: { pwd_iterations: 'abc' } })).toBe(210000);
 		});
 
+		it('配置轮数不允许超过安全上限', () => {
+			expect(cryptoUtils.resolveIterations({ env: { pwd_iterations: 2000000 } })).toBe(1000000);
+		});
+
 		it('调整轮数后，旧轮数的哈希仍能登录（轮数写在哈希里）', async () => {
 			const lowCtx = { env: { pwd_iterations: 8000 } };
 			const { salt, hash } = await cryptoUtils.hashPassword('MyPass123', lowCtx);
